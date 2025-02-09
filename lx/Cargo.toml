@@ -11,8 +11,7 @@ documentation.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-atom_syndication = { version = "0.12", features = ["with-serde"] }
-axum = { version = "0.7.4", default-features = true, features = [
+axum = { version = "0.8.1", default-features = true, features = [
     "http2",
     "ws",
 ] }
@@ -34,10 +33,10 @@ log = { workspace = true }
 lx-md = { path = "./crates/markdown" }
 minijinja = { version = "2", features = ["loader", "macros"] }
 normalize-path = "0.2"
-notify = { version = "7", default-features = false, features = [
+notify = { version = "8", default-features = false, features = [
     "macos_kqueue",
 ] }
-notify-debouncer-full = { version = "0.4", default-features = false }
+notify-debouncer-full = { version = "0.5", default-features = false }
 rayon = { workspace = true }
 regex = "1"
 serde = { workspace = true }
@@ -47,9 +46,9 @@ simplelog = { workspace = true }
 slug = "0.1"
 syntect = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1", features = ["full"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["fs", "default"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "default"] }
 uuid = { version = "1", features = ["serde", "v5"] }
-watchexec = "3"
-watchexec-signals = "2"
+
+

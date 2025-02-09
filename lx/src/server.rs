@@ -9,7 +9,7 @@ use std::{
 
 use axum::{
    extract::{
-      ws::{Message, WebSocket},
+      ws::{Message, Utf8Bytes, WebSocket},
       State, WebSocketUpgrade,
    },
    response::Response,
@@ -35,7 +35,6 @@ use tokio::{
    task::JoinError,
 };
 use tower_http::services::{ServeDir, ServeFile};
-use watchexec::error::CriticalError;
 
 // Initially, just rebuild everything. This can get smarter later!
 use crate::build::{self, config_for};
@@ -134,7 +133,7 @@ async fn websocket(socket: WebSocket, state: Sender<Change>) {
                let payload = serde_json::to_string(&ChangePayload::Reload { paths })
                   .unwrap_or_else(|e| panic!("Could not serialize payload: {e}"));
 
-               match ws_tx.send(Message::Text(payload)).await {
+               match ws_tx.send(Message::Text(payload.into())).await {
                   Ok(_) => debug!("Successfully sent {paths_desc}"),
                   Err(reason) => error!("Could not send WebSocket message:\n{reason}"),
                }
@@ -172,13 +171,13 @@ fn handle(message_result: Result<Message, axum::Error>) -> Result<WebSocketState
    use Message::*;
    match message_result {
       Ok(message) => match message {
-         Text(content) => {
-            Err(Error::WebSocket(WebSocketError::UnexpectedString(content)))
-         }
+         Text(content) => Err(Error::WebSocket(WebSocketError::UnexpectedText(
+            content.to_string(),
+         ))),
 
-         Binary(content) => {
-            Err(Error::WebSocket(WebSocketError::UnexpectedBytes(content)))
-         }
+         Binary(content) => Err(Error::WebSocket(WebSocketError::UnexpectedBytes(
+            content.into(),
+         ))),
 
          Ping(bytes) => {
             debug!("Ping with bytes: {bytes:?}");
@@ -292,12 +291,6 @@ pub enum Error {
    #[error("I/O error\n{source}")]
    Io { source: io::Error },
 
-   #[error("Error starting file watcher\n{source}")]
-   WatchStart {
-      #[from]
-      source: CriticalError,
-   },
-
    #[error("Could not open socket on address: {value}\n{source}")]
    BadAddress {
       value: SocketAddr,
@@ -342,7 +335,7 @@ pub enum WebSocketError {
    Receive { source: axum::Error },
 
    #[error("Unexpectedly received string WebSocket message with content:\n{0}")]
-   UnexpectedString(String),
+   UnexpectedText(String),
 
    #[error("Unexpectedly received binary WebSocket message with bytes:\n{0:?}")]
    UnexpectedBytes(Vec<u8>),
