@@ -2,7 +2,6 @@ mod json;
 
 use std::convert::TryFrom;
 
-use atom_syndication::Feed as AtomFeed;
 use json_feed::{AuthorOptions, JSONFeed};
 use thiserror::Error;
 
@@ -66,34 +65,5 @@ impl<'a> TryFrom<Feed<'a>> for JSONFeed {
          .build();
 
       Ok(feed)
-   }
-}
-
-impl<'a> TryFrom<Feed<'a>> for AtomFeed {
-   type Error = Error;
-
-   fn try_from(feed: Feed<'a>) -> Result<Self, Self::Error> {
-      let _updated = feed.items.updated();
-      // AtomFeed {
-      //    title: feed.title,
-      //    id: todo!("feed ID"),
-      //    updated: feed.items.updated(),
-      //    authors: todo!(),
-      //    categories: todo!(),
-      //    contributors: todo!(),
-      //    generator: todo!(),
-      //    icon: todo!(),
-      //    links: todo!(),
-      //    logo: todo!(),
-      //    rights: todo!(),
-      //    subtitle: todo!(),
-      //    entries: todo!(),
-      //    extensions: todo!(),
-      //    namespaces: todo!(),
-      //    base: todo!(),
-      //    lang: todo!(),
-      // };
-
-      todo!()
    }
 }
