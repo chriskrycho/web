@@ -60,7 +60,10 @@ jobs:
   release:
     name: Create and upload release
     needs: [check]
-    if: ${{ github.event.push.commits.author.username == 'chriskrycho' && github.ref_name == 'main'}}
+    if: ${{
+      (github.event.push.commits.author.username == 'chriskrycho' && github.ref_name == 'main')
+      || github.event_name == 'workflow_dispatch'
+      }}
     permissions:
       contents: write
     runs-on: ubuntu-22.04
