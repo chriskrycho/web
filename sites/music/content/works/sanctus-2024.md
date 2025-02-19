@@ -29,7 +29,7 @@ In addition to the video recording above, you can:
 
 ---
 
-The work is licensed under [Creative Commons Attribution-ShareAlike 4.0][cc], so you are welcome to use it however you like, including recording it yourself (you do not need permission or a license, even for commercial use!) as long as you properly credit Chris Krycho as the original composer.
+The work is licensed under [Creative Commons Attribution-ShareAlike 4.0][cc], so you are welcome to use it however you like, including recording it yourself (you do not need permission or a license, even for commercial use!) as long as you properly credit Chris Krycho as the original composer and allow others to likewise reuse your own work with it.
 
 [sanctus]: https://en.wikipedia.org/wiki/Sanctus
 [htac]: https://www.holytrinityanglican.church
