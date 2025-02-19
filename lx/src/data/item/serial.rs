@@ -231,7 +231,10 @@ pub struct MusicalWork {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Listen {
    /// Where to buy the cue or album.
+   #[serde(default)]
    pub buy: HashMap<String, String>,
+
    /// Where to stream the cue or album.
+   #[serde(default)]
    pub stream: HashMap<String, String>,
 }

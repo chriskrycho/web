@@ -409,7 +409,10 @@ impl MusicalWork {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Listen {
+   #[serde(default)]
    buy: HashMap<String, String>,
+
+   #[serde(default)]
    stream: HashMap<String, String>,
 }
 
