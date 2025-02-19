@@ -60,7 +60,7 @@ jobs:
   release:
     name: Create and upload release
     needs: [check]
-    if: ${{ github.event.push.commits.author.username == 'chriskrycho' && github.ref == 'refs/heads/main'}}
+    if: ${{ github.event.push.commits.author.username == 'chriskrycho' && github.ref_name == 'main'}}
     permissions:
       contents: write
     runs-on: ubuntu-22.04
