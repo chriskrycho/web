@@ -124,7 +124,7 @@ jobs:
   trigger-deploy-music:
     needs: [changes, build-check]
     if: ${{
-      github.ref == 'refs/heads/main' &&
+      github.ref_name == 'refs/heads/main' &&
       (((needs.changes.outputs.music == 'true' || needs.changes.outputs.cfg == 'true' || github.event_name == 'workflow_dispatch')
       && needs.build-check.outputs.state == 'non-needed')
       || needs.build-check.outputs.state == 'succeeded')
@@ -140,7 +140,7 @@ jobs:
   trigger-deploy-v6:
     needs: [changes, build-check]
     if: ${{
-      github.ref == 'refs/heads/main' &&
+      github.ref_name == 'refs/heads/main' &&
       (((needs.changes.outputs.v6 == 'true' || needs.changes.outputs.cfg == 'true' || github.event_name == 'workflow_dispatch')
       && needs.build-check.outputs.state == 'non-needed')
       || needs.build-check.outputs.state == 'succeeded')
