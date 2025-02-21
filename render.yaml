@@ -2,6 +2,7 @@ services:
   - type: web
     name: v6.chriskrycho.com
     runtime: static
+    autoDeploy: true
     envVars:
       - key: SKIP_INSTALL_DEPS
         value: 'true'
@@ -15,7 +16,7 @@ services:
   - type: web
     name: music
     runtime: static
-    autoDeploy: false
+    autoDeploy: true
     envVars:
       - key: SKIP_INSTALL_DEPS
         value: 'true'

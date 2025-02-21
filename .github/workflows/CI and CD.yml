@@ -29,18 +29,10 @@ jobs:
               - Cargo.lock
               - lx/src/**
               - lx/crates/**
-            links: [sites/music/**, sites/_shared]
-            music: [sites/music/**, sites/_shared]
-            v6: [sites/v6/**, sites/_shared]
-            www: [sites/www/**, sites/_shared]
             cfg: [render.yaml, _scripts/**, .github/workflows/**]
 
     outputs:
       lx: ${{ steps.filter.outputs.lx }}
-      links: ${{ steps.filter.outputs.links }}
-      music: ${{ steps.filter.outputs.music }}
-      v6: ${{ steps.filter.outputs.v6 }}
-      www: ${{ steps.filter.outputs.www }}
       cfg: ${{ steps.filter.outputs.cfg }}
 
   check:
@@ -120,35 +112,3 @@ jobs:
           echo "state=$STATE" >> "$GITHUB_OUTPUT"
     outputs:
       state: ${{ steps.check.outputs.state }}
-
-  trigger-deploy-music:
-    needs: [changes, build-check]
-    if: ${{
-      github.ref_name == 'refs/heads/main' &&
-      (((needs.changes.outputs.music == 'true' || needs.changes.outputs.cfg == 'true' || github.event_name == 'workflow_dispatch')
-      && needs.build-check.outputs.state == 'non-needed')
-      || needs.build-check.outputs.state == 'succeeded')
-      }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Render deploy hook
-        env:
-          deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_MUSIC }}
-        run: curl "$deploy_url"
-
-  trigger-deploy-v6:
-    needs: [changes, build-check]
-    if: ${{
-      github.ref_name == 'refs/heads/main' &&
-      (((needs.changes.outputs.v6 == 'true' || needs.changes.outputs.cfg == 'true' || github.event_name == 'workflow_dispatch')
-      && needs.build-check.outputs.state == 'non-needed')
-      || needs.build-check.outputs.state == 'succeeded')
-      }}
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Render deploy hook
-        env:
-          deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_V6 }}
-        run: curl "$deploy_url"
