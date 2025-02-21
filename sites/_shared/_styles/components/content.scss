@@ -2,7 +2,7 @@
    line-height: var(--text-lh);
    font-weight: var(--text-weight);
    orphans: 3;
-   hyphens: none;
+   hyphens: auto;
 }
 
 .content {
@@ -74,6 +74,10 @@
    font-family: var(--text-alt);
    line-height: var(--text-alt-lh);
    font-weight: var(--text-alt-weight);
+}
+
+.content blockquote {
+  margin-inline: 1em;
 }
 
 .content .note,
