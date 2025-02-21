@@ -42,10 +42,10 @@ The work is licensed under [Creative Commons Attribution-ShareAlike 4.0][cc], so
 [sanctus]: https://en.wikipedia.org/wiki/Sanctus
 [htac]: https://www.holytrinityanglican.church
 [soundcloud]: https://soundcloud.com/chriskrycho/sanctus-for-epiphany
-[full]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/Sanctus%20for%20Epiphany%20%E2%80%93%20Full.pdf
-[choral]: https://f001.backblazeb2.com/file/chriskrycho-com/music/sanctus-for-epiphany/2025-01-03%20%E2%80%93%20Choir%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
-[lead-full]: https://f001.backblazeb2.com/file/chriskrycho-com/music/sanctus-for-epiphany/2025-01-03%20%E2%80%93%20Lead%20Sheet%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
-[lead-simple]: https://f001.backblazeb2.com/file/chriskrycho-com/music/sanctus-for-epiphany/2025-02-02%20%E2%80%93%2009%20%E2%80%93%20Lead%20Sheet%20(Simple)%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
+[full]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/2025-01-03%20%E2%80%93%20Full%20score%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
+[choral]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/2025-01-03%20%E2%80%93%20Choir%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
+[lead-full]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/2025-01-03%20%E2%80%93%20Lead%20Sheet%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
+[lead-simple]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/2025-02-02%20%E2%80%93%2009%20%E2%80%93%20Lead%20Sheet%20(Simple)%20%E2%80%93%20Sanctus%20for%20Epiphany.pdf
 [chords]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/Sanctus%20for%20Epiphany%20%E2%80%93%20Chords.pdf
 [dorico]: https://cdn.chriskrycho.com/music/sanctus-for-epiphany/Sanctus%20for%20Epiphany.dorico
 [cc]: https://creativecommons.org/licenses/by-sa/4.0/deed.en
