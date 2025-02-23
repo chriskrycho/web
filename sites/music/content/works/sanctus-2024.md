@@ -11,6 +11,9 @@ work:
             Spotify: https://open.spotify.com/album/6R2ZNcya1qZ1XNXniKDoDL?si=8tlFjWsMSqyzTPL5CBl3Bg
             Apple Music: https://music.apple.com/us/album/sanctus-for-epiphany-feat-holy-trinity-anglican-church/1797951226
             YouTube Music: https://music.youtube.com/watch?v=9-vNwnx22XE&list=OLAK5uy_mPCbzig9lxY2aB-rrdefI2xDd-rLOQypM
+            Tidal: https://tidal.com/browse/track/418978735
+            Amazon Music: https://music.amazon.com/albums/B0DXQX8WZ7
+            Pandora: https://www.pandora.com/artist/chris-krycho/sanctus-for-epiphany-feat-holy-trinity-anglican-church-choir/ALPkJ2twjdv9rPg
 
         buy:
             Bandcamp: https://chriskrycho.bandcamp.com/track/sanctus-for-epiphany

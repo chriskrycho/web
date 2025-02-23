@@ -13,11 +13,10 @@ work:
       stream:
           Spotify: https://open.spotify.com/album/3AmLQs65dzB4yr6mz0dUxB
           Apple Music: https://music.apple.com/us/album/fanfare-for-a-new-era-of-american-spaceflight/1679126526?app=music
-          YouTube: https://youtube.com/playlist?list=OLAK5uy_kLJ4AlrZxkIqDWfYSqBvmKsfCc8BxXH9g
+          YouTube Music: https://music.youtube.com/browse/MPREb_id28BgMVrIR
           Tidal: https://tidal.com/browse/track/285018818
           Amazon Music: https://music.amazon.com/albums/B0BZK5RG34
           Pandora: https://www.pandora.com/artist/chris-krycho/fanfare-for-a-new-era-of-american-spaceflight-feat-budapest-scoring-orchestra/AL2hP7P9jbPv4JZ
-          YouTube Music: https://music.youtube.com/browse/MPREb_id28BgMVrIR
 
     video:
         yt: l_rRCCHczuU
