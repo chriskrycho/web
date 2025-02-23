@@ -158,9 +158,9 @@ impl Label {
    }
 }
 
-impl Into<Value> for Label {
-   fn into(self) -> Value {
-      Value::from_object(self)
+impl From<Label> for Value {
+   fn from(val: Label) -> Self {
+      Value::from_object(val)
    }
 }
 
