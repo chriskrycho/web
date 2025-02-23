@@ -3,7 +3,7 @@ work:
     title: Sanctus for Epiphany
     instrumentation: Piano and Choir
     date: 2024
-    duration: "0:00:46"
+    duration: "00:46"
 
     listen:
         stream:

@@ -293,8 +293,13 @@ impl From<serial::Book> for Book {
 pub struct MusicalWork {
    /// The title of the work.
    pub title: String,
+
    /// An intentionally unformatted string describing the instrumentation.
    pub instrumentation: String,
+
+   /// How long is the piece?
+   pub duration: String,
+
    /// A subtitle for the work, if any.
    pub subtitle: Option<String>,
 
@@ -329,6 +334,11 @@ impl MusicalWork {
                .or(from_cascade.date)
                .ok_or(FieldError::Work(WorkError::Date, WorkMissingFrom::Both))?;
 
+            let duration = from_item
+               .duration
+               .or(from_cascade.duration)
+               .ok_or(FieldError::Work(WorkError::Duration, WorkMissingFrom::Both))?;
+
             let instrumentation = from_item
                .instrumentation
                .or(from_cascade.instrumentation)
@@ -343,6 +353,7 @@ impl MusicalWork {
             Some(MusicalWork {
                title,
                date,
+               duration,
                instrumentation,
                subtitle,
                listen,
@@ -359,6 +370,10 @@ impl MusicalWork {
                .date
                .ok_or(FieldError::Work(WorkError::Date, WorkMissingFrom::Item))?;
 
+            let duration = from_item
+               .duration
+               .ok_or(FieldError::Work(WorkError::Duration, WorkMissingFrom::Item))?;
+
             let instrumentation = from_item.instrumentation.ok_or(FieldError::Work(
                WorkError::Instrumentation,
                WorkMissingFrom::Item,
@@ -368,6 +383,7 @@ impl MusicalWork {
                title,
                subtitle: from_item.subtitle,
                date,
+               duration,
                instrumentation,
                listen: from_item.listen.map(Listen::from),
                video: from_item.video.map(Video::from),
@@ -385,6 +401,14 @@ impl MusicalWork {
                WorkMissingFrom::Cascade,
             )))?;
 
+            let duration =
+               from_cascade
+                  .duration
+                  .ok_or(Error::bad_field(FieldError::Work(
+                     WorkError::Duration,
+                     WorkMissingFrom::Cascade,
+                  )))?;
+
             let instrumentation =
                from_cascade
                   .instrumentation
@@ -397,6 +421,7 @@ impl MusicalWork {
                title,
                subtitle: from_cascade.subtitle,
                date,
+               duration,
                instrumentation,
                listen: from_cascade.listen.map(Listen::from),
                video: from_cascade.video.map(Video::from),
@@ -488,6 +513,7 @@ pub enum WorkError {
    Title,
    Instrumentation,
    Date,
+   Duration,
 }
 
 impl std::fmt::Display for WorkError {
@@ -496,6 +522,7 @@ impl std::fmt::Display for WorkError {
          WorkError::Title => write!(f, "title"),
          WorkError::Instrumentation => write!(f, "instrumentation"),
          WorkError::Date => write!(f, "date"),
+         WorkError::Duration => write!(f, "duration"),
       }
    }
 }

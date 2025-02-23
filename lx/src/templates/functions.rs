@@ -1,6 +1,8 @@
+use std::{fmt, sync::Arc};
+
 use minijinja::{
-   value::{Rest, ViaDeserialize},
-   Value,
+   value::{Object, Rest, ViaDeserialize},
+   State, Value,
 };
 
 use crate::{
@@ -9,7 +11,7 @@ use crate::{
 };
 
 pub(crate) fn add_all(env: &mut minijinja::Environment<'_>) {
-   env.add_function("approximate_length", approximate_length);
+   env.add_function("label_for", label_for);
    env.add_function("resolved_title", resolved_title);
    env.add_function("resolved_image", resolved_image);
    env.add_function("description", description);
@@ -90,38 +92,143 @@ fn fancy_debug(name: Option<&str>, args: Rest<Value>) -> String {
    format!("{title}<pre><code>{args}</code></pre>")
 }
 
-fn approximate_length(source: &str) -> String {
-   let actual = count_md::count(source);
+fn label_for(
+   ViaDeserialize(page_data): ViaDeserialize<Metadata>,
+   content: &str,
+) -> Label {
+   Label::new(page_data, content)
+}
 
-   let rounded = if actual < 100 {
-      (actual / 10) * 10
-   } else if actual < 1_000 {
-      (actual / 50) * 50
-   } else {
-      (actual / 100) * 100
-   };
+/// Data for the `twitter:(label|data)(1|2)` meta tags.
+#[derive(Debug, serde::Serialize)]
+enum Label {
+   Post {
+      length: ApproximateLength,
+   },
+   Work {
+      duration: String,
+      instrumentation: String,
+   },
+}
 
-   let formatted = {
-      let formatted_number = rounded.to_string();
-      if formatted_number.len() <= 3 {
-         formatted_number
+impl Label {
+   pub fn new(page_data: Metadata, content: &str) -> Label {
+      if let Some(work) = page_data.work {
+         Label::Work {
+            duration: work.duration,
+            instrumentation: work.instrumentation,
+         }
       } else {
-         formatted_number
-            .chars()
-            .rev()
-            .enumerate()
-            .fold(String::new(), |mut s, (idx, c)| {
-               if idx > 0 && idx % 3 == 0 {
-                  s.push(',');
-               }
-               s.push(c);
-               s
-            })
-            .chars()
-            .rev()
-            .collect()
+         Label::Post {
+            length: content.into(),
+         }
       }
-   };
+   }
 
-   format!("About {formatted} words")
+   // Might later decide to do something more meaningful than Author/Composer
+   // here given it’s pretty obviously just me on my own site?
+   pub fn label1(&self) -> &'static str {
+      match self {
+         Label::Post { .. } => "Author",
+         Label::Work { .. } => "Instrumentation",
+      }
+   }
+
+   pub fn data1(&self) -> String {
+      match self {
+         Label::Post { .. } => "Chris Krycho".into(),
+         Label::Work {
+            instrumentation, ..
+         } => instrumentation.to_owned(),
+      }
+   }
+
+   pub fn label2(&self) -> &'static str {
+      match self {
+         Label::Post { .. } => "Length",
+         Label::Work { .. } => "Duration",
+      }
+   }
+
+   pub fn data2(&self) -> String {
+      match self {
+         Label::Post { length } => length.to_string(),
+         Label::Work { duration, .. } => duration.clone(),
+      }
+   }
+}
+
+impl Into<Value> for Label {
+   fn into(self) -> Value {
+      Value::from_object(self)
+   }
+}
+
+impl Object for Label {
+   fn call_method(
+      self: &Arc<Label>,
+      _state: &State,
+      name: &str,
+      _args: &[Value],
+   ) -> Result<Value, minijinja::Error> {
+      match name {
+         "label1" => Ok(self.label1().into()),
+         "data1" => Ok(self.data1().into()),
+         "label2" => Ok(self.label2().into()),
+         "data2" => Ok(self.data2().into()),
+         _ => Err(minijinja::Error::new(
+            minijinja::ErrorKind::UnknownMethod,
+            name.to_owned(),
+         )),
+      }
+   }
+}
+
+#[derive(Debug, serde::Serialize)]
+struct ApproximateLength {
+   rounded: u64,
+}
+
+impl From<&str> for ApproximateLength {
+   fn from(source: &str) -> Self {
+      let actual = count_md::count(source);
+
+      let rounded = if actual < 100 {
+         (actual / 10) * 10
+      } else if actual < 1_000 {
+         (actual / 50) * 50
+      } else {
+         (actual / 100) * 100
+      };
+
+      ApproximateLength { rounded }
+   }
+}
+
+impl fmt::Display for ApproximateLength {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      let formatted = {
+         let formatted_number = self.rounded.to_string();
+         if formatted_number.len() <= 3 {
+            formatted_number
+         } else {
+            formatted_number
+               .chars()
+               .rev()
+               .enumerate()
+               .fold(String::new(), |mut s, (idx, c)| {
+                  if idx > 0 && idx % 3 == 0 {
+                     s.push(',');
+                  }
+                  s.push(c);
+                  s
+               })
+               .chars()
+               .rev()
+               .collect()
+         }
+      };
+
+      write!(f, "About {formatted} words")
+   }
 }
