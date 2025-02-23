@@ -24,7 +24,7 @@ work:
 image: the-desert-splash.jpg
 
 summary: >
-    A minimalist/ambient work for solo piano (04:17), with 40 keystrokes. A Lenten meditation.
+    A minimalist/ambient work for solo piano, consisting of just 40 keystrokes. A Lenten meditation, inspired by Christ’s 40 days and nights in the desert.
 
 ---
 
