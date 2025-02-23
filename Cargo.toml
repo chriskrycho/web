@@ -5,7 +5,7 @@ members = ["lx", "lx/crates/*"]
 [workspace.package]
 version = "1.0.0"
 authors = ["Chris Krycho <hello@chriskrycho.com>"]
-edition = "2021"
+edition = "2024"
 description = "⚡️ My hyper-specialized tool for building my own website."
 repository = "https://github.com/chriskrycho/v6.chriskrycho.com"
 homepage = "https://github.com/chriskrycho/v6.chriskrycho.com"
