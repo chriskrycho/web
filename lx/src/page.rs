@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::data::{
    config::Config,
-   item::{self, cascade::Cascade, serial, Metadata, Slug},
+   item::{self, Metadata, Slug, cascade::Cascade, serial},
 };
 
 pub fn prepare<'e>(

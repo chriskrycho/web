@@ -8,17 +8,17 @@ use std::{
 };
 
 use axum::{
+   Router,
    extract::{
-      ws::{Message, WebSocket},
       State, WebSocketUpgrade,
+      ws::{Message, WebSocket},
    },
    response::Response,
    routing::{self},
-   Router,
 };
 use futures::{
-   future::{self, Either},
    SinkExt, StreamExt,
+   future::{self, Either},
 };
 use log::{debug, error, info, trace};
 use lx_md::Markdown;
@@ -29,7 +29,7 @@ use tokio::{
    net::TcpListener,
    runtime::Runtime,
    sync::{
-      broadcast::{self, error::RecvError, Sender},
+      broadcast::{self, Sender, error::RecvError},
       mpsc,
    },
    task::JoinError,

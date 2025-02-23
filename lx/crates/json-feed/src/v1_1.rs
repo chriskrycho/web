@@ -271,7 +271,7 @@ impl Builder {
          (None, None, None) => {
             return Err(String::from(
                "Cannot build `author` without at least one of name, url, and avatar",
-            ))
+            ));
          }
          (None, None, Some(u)) => Author::UrlOnly { url: u.into() },
          (None, Some(n), None) => Author::NameOnly { name: n.into() },

@@ -17,7 +17,7 @@ use std::fmt::Debug;
 
 use lazy_static::lazy_static;
 pub use pulldown_cmark::Options;
-use pulldown_cmark::{html, CowStr, Event, MetadataBlockKind, Parser, Tag, TagEnd};
+use pulldown_cmark::{CowStr, Event, MetadataBlockKind, Parser, Tag, TagEnd, html};
 use serde::Deserialize;
 use syntect::parsing::SyntaxSet;
 use thiserror::Error;
@@ -168,7 +168,7 @@ pub fn prepare(src: &str) -> Result<Prepared<'_>, Error> {
                }
 
                MetadataBlockKind::PlusesStyle => {
-                  return Err(Error::from(PrepareError::UsedToml))
+                  return Err(Error::from(PrepareError::UsedToml));
                }
             },
 

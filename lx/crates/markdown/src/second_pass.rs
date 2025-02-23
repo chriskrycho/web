@@ -4,8 +4,8 @@ use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
 use thiserror::Error;
 
-use super::first_pass;
 use super::FootnoteDefinitions;
+use super::first_pass;
 
 /// The second pass through the events is responsible for three tasks:
 ///
@@ -25,7 +25,9 @@ pub enum Error {
    #[error("cannot finish a code block we never started")]
    FinishedNonStartedCodeBlock,
 
-   #[error("all footnote references are handled in the first pass but {0} is provided to the second pass")]
+   #[error(
+      "all footnote references are handled in the first pass but {0} is provided to the second pass"
+   )]
    UnhandledFootnoteReference(String),
 
    #[error("syntax highlighting failure")]

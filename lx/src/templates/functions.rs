@@ -1,8 +1,8 @@
 use std::{fmt, sync::Arc};
 
 use minijinja::{
-   value::{Object, Rest, ViaDeserialize},
    State, Value,
+   value::{Object, Rest, ViaDeserialize},
 };
 
 use crate::{
