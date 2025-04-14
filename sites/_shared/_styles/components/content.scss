@@ -24,7 +24,7 @@
 .content h2 {
    font-size: var(--fs2);
    font-weight: 500;
-   margin-top: 1em;
+   margin-top: 1lh;
    margin-bottom: var(--fs-3);
 }
 
@@ -35,7 +35,7 @@
 .content h3 {
    font-size: var(--fs1);
    font-weight: 600;
-   margin-top: 1em;
+   margin-top: 1lh;
    margin-bottom: var(--fs-3);
 }
 
@@ -43,12 +43,12 @@
    font-size: var(--fs0);
    font-style: italic;
    font-weight: 600;
-   margin-top: 1em;
+   margin-top: 1lh;
    margin-bottom: var(--fs-3);
 }
 
 .content p {
-   margin-block: 1em;
+   margin-block: 1lh;
 }
 
 .content p:first-child,
@@ -77,7 +77,7 @@
 }
 
 .content blockquote {
-  margin-inline: 1em;
+   margin-inline: 1em;
 }
 
 .content .note,

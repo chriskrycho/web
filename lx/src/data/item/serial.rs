@@ -91,6 +91,8 @@ pub struct Qualifiers {
 #[serde(untagged)]
 pub enum Video {
    YouTube { yt: String },
+   YouTubePlaylist { pl: String },
+   Url { url: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

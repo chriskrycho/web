@@ -451,6 +451,7 @@ impl std::convert::From<serial::Listen> for Listen {
 #[serde(tag = "kind")]
 pub enum Video {
    YouTube { id: String },
+   YouTubePlaylist { id: String },
    Url { url: String },
 }
 
@@ -458,6 +459,8 @@ impl From<serial::Video> for Video {
    fn from(value: serial::Video) -> Self {
       match value {
          serial::Video::YouTube { yt } => Video::YouTube { id: yt },
+         serial::Video::YouTubePlaylist { pl } => Video::YouTubePlaylist { id: pl },
+         serial::Video::Url { url } => Video::Url { url },
       }
    }
 }

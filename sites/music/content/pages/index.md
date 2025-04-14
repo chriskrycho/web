@@ -4,7 +4,7 @@ permalink: /
 layout: index.jinja
 ---
 
-Chris is a composer of contemporary classical music—think somewhere between John Williams and John Tavener—with recent works ranging from small chamber pieces written for friends to a fanfare recorded with the [Budapest Scoring Orchestra][bso]. (He is also a [software engineer][cv], [writer][v5], and more.)
+Chris is a composer of contemporary classical music—think somewhere between John Williams and John Tavener or Arvo Pärt—with recent works ranging from small chamber pieces to a fanfare recorded with the [Budapest Scoring Orchestra][bso]. (He is also a [software engineer][cv], [writer][v5], and more.)
 
 [bso]: https://www.budapestscoring.com
 [cv]: https://v5.chriskrycho.com/cv/
@@ -18,6 +18,6 @@ He continued studying composition in [the University of Oklahoma's School of Mus
 
 [ou-music]: https://www.ou.edu/finearts/music
 
-After graduation, he continued composing occasionally, but the busyness of being early in a career in software development, the addition of two delightful daughters, and a graduate degree pushed music to the side throughout much of the 2010's. In 2020, he jumped back into composing with his [<cite>Fanfare for a New Era of American Spaceflight</cite>][fanfare], written in honor of the SpaceX Crew Dragon Demo launch, and has not stopped since.
+After graduation, he continued composing occasionally, but the busyness of being early in a career in software development, the addition of two delightful daughters, and a graduate degree pushed music to the side throughout much of the 2010's. In 2020, he returned to composing with his [<cite>Fanfare for a New Era of American Spaceflight</cite>][fanfare], written in honor of the SpaceX Crew Dragon Demo launch.
 
 [fanfare]: https://songwhip.com/chriskrycho/fanfare-for-a-new-era-of-american-spaceflight2023
