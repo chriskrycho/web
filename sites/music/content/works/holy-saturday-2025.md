@@ -65,7 +65,7 @@ I created the string and chamber orchestra versions in [Logic Pro][logic] using 
 [sa]: https://www.spitfireaudio.com
 [bbcso]: https://www.spitfireaudio.com/bbc-symphony-orchestra
 
-Chris’ friend and former colleague [Bryan Levay](http://bryanlevay.com/) mixed and mastered the <abbr title="extended play">EP</abbr>.
+My friend and former colleague [Bryan Levay](http://bryanlevay.com/) mixed and mastered the <abbr title="extended play">EP</abbr>.
 
 ### Theme
 
