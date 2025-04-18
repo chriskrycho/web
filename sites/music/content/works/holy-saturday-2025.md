@@ -25,7 +25,7 @@ work:
 image: holy-saturday-splash.jpg
 
 summary: >
-    A minimalist/ambient work for solo piano, consisting of just 40 keystrokes. A Lenten meditation, inspired by Christ’s 40 days and nights in the desert.
+    A meditation on the day between Good Friday and Easter, in three versions: for piano; for violin, viola, cello, and contrabass; and for chamber orchestra.
 
 ---
 
