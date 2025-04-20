@@ -110,8 +110,8 @@ impl Metadata {
                   let discusses = from_item
                      .discusses
                      .iter()
+                     .chain(from_cascade.discusses.iter())
                      .map(String::as_str)
-                     .chain(from_cascade.discusses.iter().map(String::as_str))
                      .collect::<Vec<_>>();
 
                   nice_list(&discusses)
