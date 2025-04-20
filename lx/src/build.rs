@@ -178,7 +178,7 @@ pub fn build(
                path: static_file.clone(),
             })?;
          let path = config.output.join(relative_path);
-         copy(&static_file, &path)?;
+         copy(static_file, &path)?;
       }
    }
 
@@ -191,7 +191,7 @@ pub fn build(
             path: static_file.clone(),
          })?;
       let path = config.output.join(relative_path);
-      copy(&static_file, &path)?;
+      copy(static_file, &path)?;
    }
 
    // TODO: this can and probably should use async?
@@ -258,7 +258,7 @@ fn emit(path: &Path, content: impl AsRef<[u8]>) -> Result<(), Error> {
       path: output_dir.to_owned(),
       source,
    })?;
-   fs::write(&path, content).map_err(|source| Error::WriteFile {
+   fs::write(path, content).map_err(|source| Error::WriteFile {
       path: path.to_owned(),
       source,
    })?;

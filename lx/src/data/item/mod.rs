@@ -628,11 +628,11 @@ mod tests {
    #[test]
    fn nice_list_formatting() {
       assert_eq!(
-         nice_list(&["a", "b", "c"]),
+         nice_list(["a", "b", "c"]),
          Some(String::from("a, b, and c"))
       );
-      assert_eq!(nice_list(&["a", "b"]), Some(String::from("a and b")));
-      assert_eq!(nice_list(&["a"]), Some(String::from("a")));
-      assert_eq!(nice_list(&Vec::<String>::new()), None);
+      assert_eq!(nice_list(["a", "b"]), Some(String::from("a and b")));
+      assert_eq!(nice_list(["a"]), Some(String::from("a")));
+      assert_eq!(nice_list(Vec::<String>::new()), None);
    }
 }
