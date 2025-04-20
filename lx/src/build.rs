@@ -252,6 +252,11 @@ pub fn build(
             })?;
 
       let path = config.output.join(relative_path).with_extension("css");
+      let output_dir = path.parent().expect("must have a real parent");
+      fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
+         path: output_dir.to_owned(),
+         source,
+      })?;
       fs::write(&path, converted).map_err(|source| Error::WriteFile { path, source })?;
    }
 
