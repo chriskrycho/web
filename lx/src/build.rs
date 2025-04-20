@@ -178,18 +178,7 @@ pub fn build(
                path: static_file.clone(),
             })?;
          let path = config.output.join(relative_path);
-         let output_dir = path.parent().expect("must have a real parent");
-         fs::create_dir_all(output_dir).map_err(|source| {
-            Error::CreateOutputDirectory {
-               path: output_dir.to_owned(),
-               source,
-            }
-         })?;
-         fs::copy(static_file, &path).map_err(|source| Error::CopyFile {
-            from: static_file.clone(),
-            to: path,
-            source,
-         })?;
+         copy(&static_file, &path)?;
       }
    }
 
@@ -202,16 +191,7 @@ pub fn build(
             path: static_file.clone(),
          })?;
       let path = config.output.join(relative_path);
-      let output_dir = path.parent().expect("must have a real parent");
-      fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
-         path: output_dir.to_owned(),
-         source,
-      })?;
-      fs::copy(static_file, &path).map_err(|source| Error::CopyFile {
-         from: static_file.clone(),
-         to: path,
-         source,
-      })?;
+      copy(&static_file, &path)?;
    }
 
    // TODO: this can and probably should use async?
@@ -233,7 +213,7 @@ pub fn build(
       let mut buf = Vec::new();
       templates::render(&jinja_env, &page, config, &mut buf)?;
 
-      fs::write(&path, buf).map_err(|source| Error::WriteFile { path, source })?;
+      emit(&path, &buf)?;
    }
 
    for sass_file in site_files
@@ -252,14 +232,36 @@ pub fn build(
             })?;
 
       let path = config.output.join(relative_path).with_extension("css");
-      let output_dir = path.parent().expect("must have a real parent");
-      fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
-         path: output_dir.to_owned(),
-         source,
-      })?;
-      fs::write(&path, converted).map_err(|source| Error::WriteFile { path, source })?;
+      emit(&path, &converted)?;
    }
 
+   Ok(())
+}
+
+fn copy(from: &Path, to: &Path) -> Result<(), Error> {
+   let output_dir = to.parent().expect("must have a real parent");
+   fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
+      path: output_dir.to_owned(),
+      source,
+   })?;
+   fs::copy(from, to).map_err(|source| Error::CopyFile {
+      from: from.to_owned(),
+      to: to.to_owned(),
+      source,
+   })?;
+   Ok(())
+}
+
+fn emit(path: &Path, content: impl AsRef<[u8]>) -> Result<(), Error> {
+   let output_dir = path.parent().expect("must have a real parent");
+   fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
+      path: output_dir.to_owned(),
+      source,
+   })?;
+   fs::write(&path, content).map_err(|source| Error::WriteFile {
+      path: path.to_owned(),
+      source,
+   })?;
    Ok(())
 }
 
