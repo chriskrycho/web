@@ -22,7 +22,7 @@
             </a>
          <noscript><iframe width="560" height="315" title="Play Video: The Desert" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="" src="https://www.youtube-nocookie.com/embed/{{data.work.video.id}}?autoplay=1&amp;playsinline=1"></iframe></noscript></lite-youtube>
       {% elif data.work.video.kind == "YouTubePlaylist" %}
-         <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?si=Vh0PmcKwPUCBFM7Z&amp;list={{data.work.video.id}}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+         <iframe class="embed youtube-embed" width="560" height="315" src="https://www.youtube.com/embed/videoseries?si=Vh0PmcKwPUCBFM7Z&amp;list={{data.work.video.id}}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       {% endif %}
    </section>
    {% endif %}
