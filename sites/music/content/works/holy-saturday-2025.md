@@ -29,7 +29,7 @@ summary: >
 
 ---
 
-I had the idea for this piece sitting in our small Anglican congregation’s Ash Wednesday service on March 5, 2025: a short work for Holy Saturday, the day between Good Friday’s commemoratin of the crucifixion of Jesus Christ and Easter Sunday’s celebration of his resurrection.
+I had the idea for this piece sitting in our small Anglican congregation’s Ash Wednesday service on March 5, 2025: a short work for Holy Saturday, the day between Good Friday’s commemoration of the crucifixion of Jesus Christ and Easter Sunday’s celebration of his resurrection.
 
 ![a scan of the image](https://cdn.chriskrycho.com/images/holy-saturday-sketch.jpg)
 
