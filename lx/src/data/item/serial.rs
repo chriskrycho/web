@@ -82,6 +82,7 @@ pub struct Qualifiers {
    pub audience: Option<String>,
    pub epistemic: Option<String>,
    pub context: Option<String>,
+   #[serde(default)]
    pub discusses: Vec<String>,
    pub disclosure: Option<String>,
    pub retraction: Option<Retraction>,
