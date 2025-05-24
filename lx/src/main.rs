@@ -82,22 +82,25 @@ fn main() -> Result<(), anyhow::Error> {
          include_metadata,
          full_html_output,
       } => {
-         let (input, output, dest) = parse_paths(paths)?;
+         let (input, mut dest) = parse_paths(paths)?;
          md::convert(
             input,
-            output,
+            dest.writer(),
             md::Include {
                metadata: include_metadata,
                wrapping_html: full_html_output,
             },
          )
-         .map_err(|source| Error::Markdown { dest, source })?;
+         .map_err(|source| Error::Markdown {
+            dest: dest.to_string(),
+            source,
+         })?;
          Ok(())
       }
 
       Command::Sass { paths } => {
-         let (input, output, _dest) = parse_paths(paths)?;
-         sass::convert(input, output)?;
+         let (input, mut dest) = parse_paths(paths)?;
+         sass::convert(input, dest.writer())?;
          Ok(())
       }
 
@@ -124,14 +127,12 @@ fn main() -> Result<(), anyhow::Error> {
             .map(|path| DestCfg::Path { buf: path, force })
             .unwrap_or(DestCfg::Stdout);
 
-         let (mut output, _dest) = output_buffer(&dest_cfg)?;
-         output
+         let mut dest = output_buffer(&dest_cfg)?;
+         dest
+            .writer()
             .write_all(css.as_bytes())
             .map_err(|source| Error::Io {
-               target: match dest_cfg {
-                  DestCfg::Path { buf, .. } => format!("{}", buf.display()),
-                  DestCfg::Stdout => String::from("<stdout>"),
-               },
+               target: dest.to_string(),
                source,
             })?;
 
@@ -250,7 +251,7 @@ enum Error {
    Logger(#[from] log::SetLoggerError),
 
    #[error("could not convert (for {dest})")]
-   Markdown { dest: Dest, source: md::Error },
+   Markdown { dest: String, source: md::Error },
 
    #[error("invalid theme name: {0}")]
    InvalidThemeName(String),
@@ -358,17 +359,25 @@ struct Paths {
    force: Option<bool>,
 }
 
-#[derive(Debug)]
 enum Dest {
-   File(PathBuf),
-   Stdout,
+   File { path: PathBuf, buf: Box<dyn Write> },
+   Stdout(Box<dyn Write>),
 }
 
 impl std::fmt::Display for Dest {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
-         Dest::File(path) => write!(f, "{}", path.display()),
-         Dest::Stdout => f.write_str("stdin"),
+         Dest::File { path, .. } => write!(f, "{}", path.display()),
+         Dest::Stdout(_) => f.write_str("stdin"),
+      }
+   }
+}
+
+impl Dest {
+   fn writer(&mut self) -> &mut Box<dyn Write> {
+      match self {
+         Dest::File { buf, .. } => buf,
+         Dest::Stdout(buf) => buf,
       }
    }
 }
@@ -378,7 +387,7 @@ pub(crate) enum DestCfg {
    Stdout,
 }
 
-type ParsedPaths = (Box<dyn Read>, Box<dyn Write>, Dest);
+type ParsedPaths = (Box<dyn Read>, Dest);
 
 fn parse_paths(paths: Paths) -> Result<ParsedPaths, anyhow::Error> {
    let dest_cfg = match (paths.output, paths.force.unwrap_or(false)) {
@@ -387,8 +396,8 @@ fn parse_paths(paths: Paths) -> Result<ParsedPaths, anyhow::Error> {
       (None, true) => return Err(Error::InvalidArgs)?,
    };
    let input = input_buffer(paths.input.as_ref())?;
-   let (output, dest) = output_buffer(&dest_cfg)?;
-   Ok((input, output, dest))
+   let dest = output_buffer(&dest_cfg)?;
+   Ok((input, dest))
 }
 
 pub(crate) fn input_buffer(path: Option<&PathBuf>) -> Result<Box<dyn Read>, Error> {
@@ -409,11 +418,9 @@ pub(crate) fn input_buffer(path: Option<&PathBuf>) -> Result<Box<dyn Read>, Erro
    Ok(buf)
 }
 
-fn output_buffer(dest_cfg: &DestCfg) -> Result<(Box<dyn Write>, Dest), Error> {
+fn output_buffer(dest_cfg: &DestCfg) -> Result<Dest, Error> {
    match dest_cfg {
-      DestCfg::Stdout => {
-         Ok((Box::new(std::io::stdout()) as Box<dyn Write>, Dest::Stdout))
-      }
+      DestCfg::Stdout => Ok(Dest::Stdout(Box::new(std::io::stdout()) as Box<dyn Write>)),
 
       DestCfg::Path { buf: path, force } => {
          let dir = path.parent().ok_or_else(|| Error::InvalidDirectory {
@@ -444,7 +451,10 @@ fn output_buffer(dest_cfg: &DestCfg) -> Result<(Box<dyn Write>, Dest), Error> {
                source,
             })?;
 
-         Ok((Box::new(file) as Box<dyn Write>, Dest::File(path.clone())))
+         Ok(Dest::File {
+            path: path.clone(),
+            buf: Box::new(file) as Box<dyn Write>,
+         })
       }
    }
 }

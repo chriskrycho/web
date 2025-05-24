@@ -9,7 +9,7 @@ pub struct Include {
 
 pub fn convert(
    mut input: Box<dyn Read>,
-   mut output: Box<dyn Write>,
+   output: &mut Box<dyn Write>,
    include: Include,
 ) -> Result<(), Error> {
    let mut src = String::new();
@@ -29,7 +29,7 @@ pub fn convert(
               <link rel="stylesheet" href="/dark.css" media="(prefers-color-scheme: dark)" />
           </head>
           <body>"#,
-         &mut output,
+         output,
       )?;
    }
 
@@ -68,14 +68,14 @@ pub fn convert(
             }),
          }?;
 
-         yaml_to_html(&metadata_table, &mut output)?;
+         yaml_to_html(&metadata_table, output)?;
       }
    }
 
-   write(rendered.html(), &mut output)?;
+   write(rendered.html(), output)?;
 
    if include.wrapping_html {
-      write("</body></html>", &mut output)?;
+      write("</body></html>", output)?;
    }
 
    Ok(())

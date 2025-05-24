@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 
 pub fn convert(
    mut input: Box<dyn Read>,
-   mut output: Box<dyn Write>,
+   output: &mut Box<dyn Write>,
 ) -> Result<(), Error> {
    let mut src = String::new();
    input.read_to_string(&mut src)?;
