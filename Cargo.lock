@@ -411,17 +411,12 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "count-md"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a83ca1be73e50a49521ae1c1f1a7c588b1a03c499649d01846b3bc2631f8418e"
+checksum = "5948954f404b4b815e3c34dab4124476d51144c38376625e0d2d413c97573e00"
 dependencies = [
  "bitflags 2.9.1",
- "clap",
- "clap_complete",
- "notify 6.1.1",
- "pulldown-cmark 0.10.3",
- "rayon",
- "thiserror 1.0.69",
+ "pulldown-cmark",
  "unicode-segmentation",
  "xmlparser",
 ]
@@ -442,15 +437,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "crossbeam-channel"
-version = "0.5.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
-dependencies = [
- "crossbeam-utils",
 ]
 
 [[package]]
@@ -951,17 +937,6 @@ dependencies = [
 
 [[package]]
 name = "inotify"
-version = "0.9.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8069d3ec154eb856955c1c0fbffefbf5f3c40a104ec912d4797314c1801abff"
-dependencies = [
- "bitflags 1.3.2",
- "inotify-sys",
- "libc",
-]
-
-[[package]]
-name = "inotify"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f37dccff2791ab604f9babef0ba14fbe0be30bd368dc541e2b08d07c8aa908f3"
@@ -1110,7 +1085,7 @@ dependencies = [
  "lx-md",
  "minijinja",
  "normalize-path",
- "notify 8.0.0",
+ "notify",
  "notify-debouncer-full",
  "rayon",
  "regex",
@@ -1140,7 +1115,7 @@ dependencies = [
  "latex2mathml",
  "lazy_static",
  "log",
- "pulldown-cmark 0.12.2",
+ "pulldown-cmark",
  "serde",
  "serde_yaml",
  "simplelog",
@@ -1226,18 +1201,6 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a650543ca06a924e8b371db273b2756685faae30f8487da1b56505a8f78b0c"
-dependencies = [
- "libc",
- "log",
- "wasi",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mio"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2886843bf800fba2e3377cff24abf6379b4c4d5c6681eaf9ea5b0d15090450bd"
@@ -1268,25 +1231,6 @@ checksum = "f5438dd2b2ff4c6df6e1ce22d825ed2fa93ee2922235cc45186991717f0a892d"
 
 [[package]]
 name = "notify"
-version = "6.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6205bd8bb1e454ad2e27422015fb5e4f2bcc7e08fa8f27058670d208324a4d2d"
-dependencies = [
- "bitflags 2.9.1",
- "crossbeam-channel",
- "filetime",
- "fsevent-sys",
- "inotify 0.9.6",
- "kqueue",
- "libc",
- "log",
- "mio 0.8.11",
- "walkdir",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "notify"
 version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fee8403b3d66ac7b26aee6e40a897d85dc5ce26f44da36b8b73e987cc52e943"
@@ -1294,11 +1238,11 @@ dependencies = [
  "bitflags 2.9.1",
  "filetime",
  "fsevent-sys",
- "inotify 0.11.0",
+ "inotify",
  "kqueue",
  "libc",
  "log",
- "mio 1.0.3",
+ "mio",
  "notify-types",
  "walkdir",
  "windows-sys 0.59.0",
@@ -1312,7 +1256,7 @@ checksum = "d2d88b1a7538054351c8258338df7c931a590513fb3745e8c15eb9ff4199b8d1"
 dependencies = [
  "file-id",
  "log",
- "notify 8.0.0",
+ "notify",
  "notify-types",
  "walkdir",
 ]
@@ -1522,34 +1466,16 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.10.3"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76979bea66e7875e7509c4ec5300112b316af87fa7a252ca91c448b32dfe3993"
+checksum = "1e8bbe1a966bd2f362681a44f6edce3c2310ac21e4d5067a6e7ec396297a6ea0"
 dependencies = [
  "bitflags 2.9.1",
  "getopts",
  "memchr",
- "pulldown-cmark-escape 0.10.1",
+ "pulldown-cmark-escape",
  "unicase",
 ]
-
-[[package]]
-name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags 2.9.1",
- "memchr",
- "pulldown-cmark-escape 0.11.0",
- "unicase",
-]
-
-[[package]]
-name = "pulldown-cmark-escape"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd348ff538bc9caeda7ee8cad2d1d48236a1f443c1fa3913c6a02fe0043b1dd3"
 
 [[package]]
 name = "pulldown-cmark-escape"
@@ -2001,7 +1927,7 @@ dependencies = [
  "backtrace",
  "bytes",
  "libc",
- "mio 1.0.3",
+ "mio",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
@@ -2317,7 +2243,7 @@ dependencies = [
  "futures",
  "miette",
  "normalize-path",
- "notify 8.0.0",
+ "notify",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
