@@ -50,5 +50,5 @@ tokio = { version = "1", features = ["full"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "default"] }
 uuid = { version = "1", features = ["serde", "v5"] }
-watchexec = "3"
-watchexec-signals = "2"
+watchexec = "8"
+watchexec-signals = "5"
