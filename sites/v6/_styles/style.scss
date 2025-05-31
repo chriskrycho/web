@@ -1,1 +1,7 @@
-@use '../../_shared/_styles';
+@use './baselines';
+@use './colors';
+@use './typography';
+@use './animation';
+
+// TODO: drop this once its contributions have been integrated.
+@use './from-cascadea';

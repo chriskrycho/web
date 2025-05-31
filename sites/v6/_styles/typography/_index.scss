@@ -1,0 +1,15 @@
+@use './fonts.scss';
+
+:root {
+   --serif: MD Lórien, Big Caslon, Georgia, serif;
+   --sans: Sanomat Sans Text, Avenir Next, Avenir, sans-serif;
+   --serif-alt: Sanomat, Georgia, serif;
+   --mono: Berkeley Mono, ui-monospace, monospace;
+   --fs-base: 16px;
+   --min-line-height: 1.375;
+   --line-height: var(--min-line-height);
+}
+
+html {
+   font: var(--fs-base) / var(--line-height) var(--serif);
+}

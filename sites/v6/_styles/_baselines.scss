@@ -1,0 +1,63 @@
+/**
+   These are mostly my own opinions, but the following is also derived in small
+   part from:
+   
+   - Josh Comeau’s reset (https://www.joshwcomeau.com/css/custom-css-reset/)
+   - normalize.css (github.com/necolas/normalize.css)
+ */
+
+*,
+*::before,
+*::after {
+   box-sizing: border-box;
+}
+
+html {
+   // Prevent adjustments of font size after orientation changes in iOS.
+   -webkit-text-size-adjust: 100%;
+   // This is the for
+   -webkit-font-smoothing: antialiased;
+
+   padding: 0;
+   margin: 0;
+}
+
+/* Improve media defaults */
+img,
+picture,
+video,
+canvas,
+svg {
+   display: block;
+   max-width: 100%;
+}
+
+img,
+picture,
+video {
+   aspect-ratio: auto;
+}
+
+figure {
+   margin: 0;
+}
+
+/**
+   Prevent `sub` and `sup` elements from affecting the line height in
+   all browsers.
+ */
+sub,
+sup {
+   font-size: 75%;
+   line-height: 0;
+   position: relative;
+   vertical-align: baseline;
+}
+
+sub {
+   bottom: -0.25em;
+}
+
+sup {
+   top: -0.5em;
+}
