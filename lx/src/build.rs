@@ -220,8 +220,16 @@ pub fn build(
       .styles
       .into_iter()
       // only build the “root” files
-      .filter(|path| !path.starts_with("_"))
+      .filter(|path| {
+         !path
+            .file_name()
+            .expect("all Sass files have file names")
+            .to_str()
+            .expect("I don’t bother with non-UTF-8 file names")
+            .starts_with("_")
+      })
    {
+      debug!("building sass for {}", sass_file.display());
       let converted = grass::from_path(&sass_file, &grass::Options::default())?;
       let relative_path =
          sass_file
