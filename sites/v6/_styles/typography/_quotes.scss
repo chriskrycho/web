@@ -1,0 +1,15 @@
+.pull-double {
+   margin-left: calc(-1 * var(--double-margin));
+}
+
+.push-double {
+   margin-left: var(--double-margin);
+}
+
+.pull-single {
+   margin-left: calc(-1 * var(--single-margin));
+}
+
+.push-single {
+   margin-left: var(--single-margin);
+}

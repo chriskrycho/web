@@ -1,92 +1,9 @@
-<!doctype html>
-<html lang="en-us">
-   <head>
-      <title>Testing</title>
-   </head>
-   <body>
-      <article class="content">
-         {{content}}
-      </article>
-   </body>
+{% extends 'base.jinja' %}
 
-   <script>
-      const Level = {
-         Off: 0,
-         Error: 1,
-         Warn: 2,
-         Info: 3,
-         Debug: 4,
-         Trace: 5,
-      };
+{% block body %}
+<article class="content">
+   {{ content }}
+</article>
 
-      let ws = new WebSocket('http://localhost:24747/live-reload');
-      debug('created WebSocket instance');
-
-      ws.addEventListener('error', (event) => {
-         error('error:', event);
-      });
-
-      ws.addEventListener('close', (closeEvent) => {
-         let message = `closed because ${closeEvent.reason}`;
-         if (closeEvent.wasClean) {
-            debug(message);
-         } else {
-            error(message, closeEvent.code);
-         }
-      });
-
-      ws.addEventListener('message', (message) => {
-         console.log('got message', message);
-         // TODO:
-         //
-         // 1. Update the Serde config to send this as `type: 'Reload', values: ...`.
-         // 2. Only reload if the path is relevant.
-         let payload;
-         try {
-            payload = JSON.parse(message.data);
-            debug('Parsed JSON payload of WebSocket message', payload);
-         } catch (e) {
-            error('Error deserializing WebSocket message', e);
-         }
-
-         if (payload.Reload) {
-            debug('Specified reload paths were:', message.data.Reload);
-            location.reload();
-         }
-      });
-
-      debug('added all WebSocket listeners');
-
-      function setLogLevel(value) {
-         globalThis.localStorage.setItem('lx:logLevel', value);
-      }
-
-      function resetLogLevel() {
-         globalThis.localStorage.clear();
-      }
-
-      function error(...messages) {
-         if (logLevel() >= Level.Error) console.error('[Error]', ...messages);
-      }
-
-      function warn(...messages) {
-         if (logLevel() >= Level.Warn) console.warn('[Warning]', ...messages);
-      }
-
-      function info(...messages) {
-         if (logLevel() >= Level.Info) console.info('[Info]', ...messages);
-      }
-
-      function debug(...messages) {
-         if (logLevel() >= Level.Debug) console.info('[Debug]', ...messages);
-      }
-
-      function trace(...messages) {
-         if (logLevel() >= Level.Debug) console.info('[Trace]', ...messages);
-      }
-
-      function logLevel() {
-         return globalThis.localStorage.getItem('lx:logLevel') ?? 'info';
-      }
-   </script>
-</html>
+{% block article_footer %}{% endblock %}
+{% endblock %}
