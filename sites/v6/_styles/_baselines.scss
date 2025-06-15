@@ -15,7 +15,8 @@
 html {
    // Prevent adjustments of font size after orientation changes in iOS.
    -webkit-text-size-adjust: 100%;
-   // This is the for
+   // This makes rendering on Safari and Chrome on macOS desktop match rendering
+   // basically everywhere else.
    -webkit-font-smoothing: antialiased;
 
    padding: 0;
