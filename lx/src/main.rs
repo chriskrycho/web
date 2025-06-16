@@ -310,7 +310,7 @@ enum Command {
       full_html_output: bool,
    },
 
-   /// Work with theme SCSS.
+   /// Work with syntax highlighting theme SCSS.
    #[command(subcommand)]
    Theme(Theme),
 
