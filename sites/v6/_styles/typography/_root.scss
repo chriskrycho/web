@@ -3,10 +3,17 @@
    --sans: Sanomat Sans Text, Avenir Next, Avenir, sans-serif;
    --serif-alt: Sanomat, Georgia, serif;
    --mono: Berkeley Mono, ui-monospace, monospace;
-   --fs-base: 16px;
+   --fs-base: 12pt;
    --min-line-height: 1.375;
    --line-height: var(--min-line-height);
    --line-height-code-block: 1.1875;
+}
+
+@media screen and (min-width: 768px) {
+   :root {
+      --fs-base: 13pt;
+      --line-height: 1.45;
+   }
 }
 
 html {
