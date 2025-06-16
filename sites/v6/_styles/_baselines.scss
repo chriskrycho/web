@@ -1,7 +1,7 @@
 /**
    These are mostly my own opinions, but the following is also derived in small
    part from:
-   
+
    - Josh Comeau’s reset (https://www.joshwcomeau.com/css/custom-css-reset/)
    - normalize.css (github.com/necolas/normalize.css)
  */
@@ -44,8 +44,7 @@ figure {
 }
 
 /**
-   Prevent `sub` and `sup` elements from affecting the line height in
-   all browsers.
+   Prevent `sub` and `sup` elements from affecting the line height in all browsers.
  */
 sub,
 sup {
@@ -61,4 +60,8 @@ sub {
 
 sup {
    top: -0.5em;
+}
+
+pre {
+   margin: 0;
 }

@@ -6,9 +6,27 @@
    --fs-base: 16px;
    --min-line-height: 1.375;
    --line-height: var(--min-line-height);
+   --line-height-code-block: 1.1875;
 }
 
 html {
    font-size: var(--fs-base);
    line-height: var(--line-height);
+}
+
+code {
+   font-family:
+      Berkeley Mono,
+      monospace;
+   font-size: 1rem;
+   font-size-adjust: ex-height 0.475;
+}
+
+// For future me: line-height has to go on the `pre`, not on the `code`.
+pre:not(.poetry) {
+   line-height: var(--line-height-code-block);
+}
+
+pre code {
+   font-size: 0.9rem;
 }
