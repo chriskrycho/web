@@ -286,6 +286,7 @@ enum Command {
    },
 
    /// Build and serve the site for development
+   #[clap(aliases = ["d", "dev", "s", "serve"])]
    Develop { site_directory: Option<PathBuf> },
 
    /// Straight to the config. Give me completions for my own dang tool
