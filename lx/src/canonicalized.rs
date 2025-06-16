@@ -3,7 +3,7 @@ use std::{
    path::{Path, PathBuf},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Canonicalized {
    path: PathBuf,
 }
