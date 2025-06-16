@@ -29,7 +29,10 @@ use tokio::{
    net::TcpListener,
    runtime::Runtime,
    sync::{
-      broadcast::{self, Sender, error::RecvError},
+      broadcast::{
+         self, Sender,
+         error::{RecvError, SendError},
+      },
       mpsc,
    },
    task::JoinError,
@@ -38,7 +41,11 @@ use tower_http::services::{ServeDir, ServeFile};
 use watchexec::error::CriticalError;
 
 // Initially, just rebuild everything. This can get smarter later!
-use crate::build::{self, config_for};
+use crate::{
+   build::{self, config_for},
+   canonicalized::Canonicalized,
+   data::config::Config,
+};
 
 /// Serve the site, blocking on the result (i.e. blocking forever until it is
 /// killed by some kind of signal or failure).
@@ -62,26 +69,88 @@ pub fn serve(site_dir: &Path) -> Result<(), Error> {
    trace!("Building in {site_dir:?}");
    let config = config_for(&site_dir)?; // TODO: watch this separately?
    trace!("Computed config: {config:?}");
-   build::build(site_dir, &config, &md).map_err(Error::from)?;
+   build::build(&site_dir, &config, &md).map_err(Error::from)?;
 
    // I only need the tx side, since I am going to take advantage of the fact that
    // `broadcast::Sender` implements `Clone` to pass it around and get easy and convenient
-   // access to local receivers with `tx.subscribe()`.
-   let (tx, _rx) = broadcast::channel(10);
+   // access to local receivers with `tx.subscribe()`. I would *prefer* simply to pass an
+   // owned receiver in each case, but Tokio has stupid bounds that make this not work for
+   // reasons not clear to me.
+   let (change_tx, _) = broadcast::channel(8);
+   let (rebuild_tx, _) = broadcast::channel(8);
 
-   let serve_handle = rt.spawn(serve_in(config.output.clone(), tx.clone()));
-   let watch_handle = rt.spawn(watch_in(config.output.clone(), tx.clone()));
-   // TODO: actually *use* the handle!
-   let _rebuild_handle = (); // TODO
+   let serve_handle = rt.spawn(serve_in(config.output.clone(), rebuild_tx.clone()));
+   let watch_handle = rt.spawn(watch_in(site_dir.clone(), change_tx.clone()));
+   let rebuild_handle =
+      rt.spawn(rebuild(site_dir, config, md, change_tx, rebuild_tx.clone()));
 
-   match rt.block_on(race_all([serve_handle, watch_handle])) {
-      Ok(Ok(_)) => Ok(()),
-      Ok(Err(reason)) => Err(reason),
-      Err(join_error) => Err(Error::Serve { source: join_error }),
+   match rt.block_on(race_all([serve_handle, watch_handle, rebuild_handle])) {
+      Ok(Ok(_)) => {
+         trace!("block_on -> race_all exited with Ok(Ok()))");
+         Ok(())
+      }
+      Ok(Err(reason)) => {
+         trace!("block_on -> race_all exited with Ok(Err({reason:?})))");
+         Err(reason)
+      }
+      Err(join_error) => {
+         trace!("block_on -> race_all exited with Err({join_error:?})");
+         Err(Error::Serve { source: join_error })
+      }
    }
 }
 
-async fn serve_in(path: PathBuf, state: Tx) -> Result<(), Error> {
+async fn rebuild(
+   site_dir: Canonicalized,
+   site_config: Config,
+   md: Markdown,
+   change: Sender<Change>,
+   rebuild_tx: broadcast::Sender<Rebuild>,
+) -> Result<(), Error> {
+   let mut change = change.subscribe();
+   loop {
+      match change.recv().await {
+         Ok(Change { paths }) => {
+            trace!(
+               "rebuilding because of change to file(s):\n\t{}",
+               paths
+                  .iter()
+                  .map(|p| p.display().to_string())
+                  .collect::<Vec<_>>()
+                  .join("\n\t")
+            );
+
+            let rebuild =
+               match build::build(&site_dir, &site_config, &md).map_err(Error::from) {
+                  Ok(()) => Rebuild::Success { paths },
+                  Err(err) => Rebuild::Failure {
+                     cause: err.to_string(),
+                  },
+               };
+
+            trace!("rebuild result: {rebuild:?}");
+            match rebuild_tx.send(rebuild) {
+               Ok(recv_count) => {
+                  debug!("sent rebuild notification to {recv_count} open receivers");
+               }
+               Err(_rebuild) => {
+                  debug!("no open receiver, so rebuild notification ignored");
+               }
+            }
+         }
+
+         Err(RecvError::Lagged(skipped)) => {
+            error!("FS change notification: lost {skipped} messages")
+         }
+
+         Err(RecvError::Closed) => break,
+      }
+   }
+
+   Ok(())
+}
+
+async fn serve_in(path: PathBuf, state: broadcast::Sender<Rebuild>) -> Result<(), Error> {
    // This could be extracted into its own function.
    let serve_dir = ServeDir::new(&path).append_index_html_on_directories(true);
    let router = Router::new()
@@ -107,7 +176,7 @@ async fn serve_in(path: PathBuf, state: Tx) -> Result<(), Error> {
 
 async fn websocket_upgrade(
    extractor: WebSocketUpgrade,
-   State(state): State<Tx>,
+   State(state): State<broadcast::Sender<Rebuild>>,
 ) -> Response {
    debug!("binding websocket upgrade");
    extractor.on_upgrade(|socket| {
@@ -116,36 +185,46 @@ async fn websocket_upgrade(
    })
 }
 
-async fn websocket(socket: WebSocket, state: Sender<Change>) {
+async fn websocket(socket: WebSocket, rebuild_tx: broadcast::Sender<Rebuild>) {
    let (mut ws_tx, mut ws_rx) = socket.split();
-   let mut change_rx = state.subscribe();
+
+   let mut rebuild_rx = rebuild_tx.subscribe();
+   trace!("websocket subscribed to new receiver");
 
    let reload = pin!(async {
       loop {
-         match change_rx.recv().await {
-            Ok(Change { paths }) => {
-               let paths_desc = paths
-                  .iter()
-                  .map(|p| p.to_string_lossy())
-                  .collect::<Vec<_>>()
-                  .join("\n\t");
-               debug!("sending WebSocket reload message with paths:\n\t{paths_desc}");
+         match rebuild_rx.recv().await {
+            Ok(rebuild) => match rebuild {
+               Rebuild::Success { paths } => {
+                  let paths_desc = paths
+                     .iter()
+                     .map(|p| p.to_string_lossy())
+                     .collect::<Vec<_>>()
+                     .join("\n\t");
 
-               let payload = serde_json::to_string(&ChangePayload::Reload { paths })
+                  debug!("sending WebSocket reload message with paths:\n\t{paths_desc}");
+
+                  let payload = serde_json::to_string(&ChangePayload::Reload {
+                     paths: paths.clone(),
+                  })
                   .unwrap_or_else(|e| panic!("Could not serialize payload: {e}"));
 
-               match ws_tx.send(Message::Text(payload)).await {
-                  Ok(_) => debug!("Successfully sent {paths_desc}"),
-                  Err(reason) => error!("Could not send WebSocket message:\n{reason}"),
+                  match ws_tx.send(Message::Text(payload)).await {
+                     Ok(_) => debug!("Successfully sent {paths_desc}"),
+                     Err(reason) => error!("Could not send WebSocket message:\n{reason}"),
+                  }
                }
-            }
-
-            Err(recv_error) => match recv_error {
-               RecvError::Closed => break,
-               RecvError::Lagged(skipped) => {
-                  error!("Websocket change notifier: lost {skipped} messages");
+               Rebuild::Failure { cause } => {
+                  todo!(
+                     "send message about errors to client.\
+                        Make it easy to notice and debug on either side!"
+                  )
                }
             },
+            Err(_) => {
+               eprintln!("");
+               break;
+            }
          }
       }
    });
@@ -241,11 +320,14 @@ struct Change {
    pub paths: Vec<PathBuf>,
 }
 
-/// Shorthand for typing!
-type Tx = Sender<Change>;
+#[derive(Debug, Clone)]
+pub enum Rebuild {
+   Success { paths: Vec<PathBuf> },
+   Failure { cause: String },
+}
 
-async fn watch_in(dir: PathBuf, change_tx: Tx) -> Result<(), Error> {
-   let (tx, mut rx) = mpsc::channel(256);
+async fn watch_in(input: Canonicalized, change_tx: Sender<Change>) -> Result<(), Error> {
+   let (tx, mut rx) = mpsc::channel(8);
 
    // Doing this here means we will not drop the watcher until this function
    // ends, and the `while let` below will continue until there is an error (or
@@ -260,9 +342,21 @@ async fn watch_in(dir: PathBuf, change_tx: Tx) -> Result<(), Error> {
       },
    )?;
 
-   debouncer.watch(&dir, RecursiveMode::Recursive)?;
+   let paths = input
+      .as_ref()
+      .read_dir()
+      .map_err(|source| Error::Io { source })?
+      .filter_map(|p| p.ok().map(|p| p.path()))
+      .filter(|p| !is_public(input.as_ref(), p))
+      .collect::<Vec<PathBuf>>();
+
+   for path in paths {
+      debug!("Adding {} to watched paths", path.display());
+      debouncer.watch(&path, RecursiveMode::Recursive)?;
+   }
 
    while let Some(result) = rx.recv().await {
+      // Might want to handle debounce errors without closing this?
       let paths = result
          .map_err(Error::DebounceErrors)?
          .into_iter()
@@ -276,6 +370,20 @@ async fn watch_in(dir: PathBuf, change_tx: Tx) -> Result<(), Error> {
    }
 
    Ok(())
+}
+
+fn is_public(root: &Path, desc: &Path) -> bool {
+   let out = desc
+      .strip_prefix(root)
+      .expect("Never call this on paths which are not children of the root")
+      .starts_with("public");
+   trace!(
+      "checking whether {} is in {}/public: {}",
+      desc.display(),
+      root.display(),
+      if out { "yes " } else { "no" }
+   );
+   out
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -333,6 +441,9 @@ pub enum Error {
 
    #[error(transparent)]
    WebSocket(#[from] WebSocketError),
+
+   #[error("Could not send rebuild notification")]
+   Rebuild(#[from] SendError<Rebuild>),
 }
 
 // TODO: consider moving to its own module.

@@ -28,7 +28,7 @@ pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
    let md = Markdown::new(None);
 
    // TODO: further split this apart.
-   build(directory, &config, &md)
+   build(&directory, &config, &md)
 }
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
@@ -41,7 +41,7 @@ pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
 
 // TODO: further split this apart.
 pub fn build(
-   directory: Canonicalized,
+   directory: &Canonicalized,
    config: &Config,
    md: &Markdown,
 ) -> Result<(), Error> {
