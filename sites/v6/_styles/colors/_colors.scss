@@ -18,7 +18,20 @@
    --blue-5: hsl(208, 85%, 80%);
    --blue-6: hsl(208, 85%, 92%);
 
-   // TODO: some complementary color to the existing theme! Gold? Purple? Both?
+   --purple-0: oklch(0.25 0.14 285);
+   --purple-1: oklch(0.46 0.14 285);
+   --purple-2: oklch(0.5 0.14 285);
+   --purple-3: oklch(0.55 0.14 285);
+   --purple-4: oklch(0.65 0.14 285);
+   --purple-5: oklch(0.7 0.14 285);
+   --purple-6: oklch(0.74 0.14 285);
+
+   // TODO: add gold as well?
+}
+
+html {
+   color: var(--fg);
+   background: var(--bg);
 }
 
 @media screen {

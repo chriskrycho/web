@@ -2,13 +2,6 @@
    --max-width: 37rem;
 }
 
-@media screen and (min-width: 768px) {
-   :root {
-      --fs-base: 13pt;
-      --line-height: 1.45;
-   }
-}
-
 @media screen and (min-width: 960px) {
    .content-block {
       --max-width: 35rem;

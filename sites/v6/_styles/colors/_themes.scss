@@ -1,0 +1,61 @@
+@mixin light {
+   --bg: var(--gray-6);
+   --fg: var(--gray-0);
+
+   --link: var(--blue-1);
+   --link-underline: var(--gray-4);
+   --link-hover: var(--blue-0);
+   --link-hover-underline: var(--blue-2);
+   --link-visited: var(--purple-1);
+   --link-visited-hover: var(--purple-0);
+   --link-visited-hover-underline: var(--purple-4);
+}
+
+@mixin dark {
+   --bg: var(--gray-0);
+   --fg: var(--gray-5);
+
+   --link: var(--blue-4);
+   --link-underline: var(--gray-4);
+   --link-hover: var(--gray-6);
+   --link-hover-underline: var(--blue-2);
+
+   --link-visited: var(--purple-5);
+   --link-visited-underline: var(--gray-6);
+   --link-visited-hover: var(--gray-6);
+   --link-visited-hover-underline: var(--purple-4);
+}
+
+// Default to light unless the user explicitly specifies they prefer dark...
+:root,
+.light:root {
+   @include light();
+}
+
+.dark:root {
+   @include dark();
+}
+
+// ...noting that setting a value via the OS *is* explicitly specifying a
+// preference.
+@media screen {
+   @media (prefers-color-scheme: light) {
+      :root {
+         @include light();
+      }
+
+      .dark:root {
+         @include dark();
+      }
+   }
+
+   @media (prefers-color-scheme: dark) {
+      :root {
+         @include dark();
+      }
+
+      .light:root {
+         @include light();
+      }
+   }
+}

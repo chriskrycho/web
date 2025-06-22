@@ -1,3 +1,33 @@
 .content {
    font-family: var(--serif);
+
+   a {
+      color: var(--link);
+      text-decoration-color: var(--link-underline);
+      text-decoration-skip-ink: auto;
+      text-decoration-thickness: 1pt;
+
+      transition:
+         text-decoration-color var(--transition),
+         color var(--transition);
+
+      &:hover {
+         text-decoration-color: var(--link-hover-underline);
+      }
+
+      &:hover,
+      &:active {
+         color: var(--link-hover);
+      }
+
+      &:visited {
+         color: var(--link-visited);
+         // text-decoration-color: var(--link-visited-underline);
+         &:hover,
+         &:active {
+            color: var(--link-visited-hover);
+            text-decoration-color: var(--link-visited-hover-underline);
+         }
+      }
+   }
 }

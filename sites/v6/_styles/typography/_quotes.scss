@@ -1,3 +1,11 @@
+:root {
+   --double-margin: 0.5em;
+   --single-margin: 0.2em;
+
+   --double-margin-sans: 0.15em;
+   --single-margin-sans: 0.1em;
+}
+
 .pull-double {
    margin-left: calc(-1 * var(--double-margin));
 }
