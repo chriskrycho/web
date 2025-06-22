@@ -20,7 +20,7 @@ use futures::{
    SinkExt, StreamExt,
    future::{self, Either},
 };
-use log::{debug, error, info, trace};
+use log::{debug, error, info, trace, warn};
 use lx_md::Markdown;
 use notify::RecursiveMode;
 use notify_debouncer_full::DebouncedEvent;
@@ -71,7 +71,10 @@ pub fn serve(site_dir: &Path) -> Result<(), Error> {
    let config = config_for(&site_dir)?; // TODO: watch this separately?
    trace!("Computed config: {config:?}");
 
-   build::build(&site_dir, &config, &md).map_err(Error::from)?;
+   let first_build = build::build(&site_dir, &config, &md);
+   if let Err(e) = first_build {
+      eprintln!("Initial build failed: {e:?}");
+   }
 
    // I only need the tx side, since I am going to take advantage of the fact that
    // `broadcast::Sender` implements `Clone` to pass it around and get easy and convenient
@@ -124,20 +127,24 @@ async fn rebuild(
 
             let rebuild =
                match build::build(&site_dir, &site_config, &md).map_err(Error::from) {
-                  Ok(()) => Rebuild::Success { paths },
-                  Err(err) => Rebuild::Failure {
-                     cause: err.to_string(),
-                  },
+                  Ok(()) => {
+                     info!("rebuild completed");
+                     Rebuild::Success { paths }
+                  }
+                  Err(err) => {
+                     warn!("rebuild failed: {err:#?}");
+                     Rebuild::Failure {
+                        cause: err.to_string(),
+                     }
+                  }
                };
-
-            trace!("rebuild result: {rebuild:?}");
 
             match rebuild_tx.send(rebuild) {
                Ok(recv_count) => {
-                  debug!("sent rebuild notification to {recv_count} open receivers");
+                  trace!("sent rebuild notification to {recv_count} open receivers");
                }
                Err(_rebuild) => {
-                  debug!("no open receiver, so rebuild notification ignored");
+                  trace!("no open receiver, so rebuild notification ignored");
                }
             }
          }
