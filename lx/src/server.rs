@@ -67,8 +67,10 @@ pub fn serve(site_dir: &Path) -> Result<(), Error> {
    // 4. When the build finishes, use *that* to trigger a reload.
    let site_dir = site_dir.try_into()?;
    trace!("Building in {site_dir:?}");
+
    let config = config_for(&site_dir)?; // TODO: watch this separately?
    trace!("Computed config: {config:?}");
+
    build::build(&site_dir, &config, &md).map_err(Error::from)?;
 
    // I only need the tx side, since I am going to take advantage of the fact that
@@ -129,6 +131,7 @@ async fn rebuild(
                };
 
             trace!("rebuild result: {rebuild:?}");
+
             match rebuild_tx.send(rebuild) {
                Ok(recv_count) => {
                   debug!("sent rebuild notification to {recv_count} open receivers");
@@ -333,7 +336,7 @@ async fn watch_in(input: Canonicalized, change_tx: Sender<Change>) -> Result<(),
    // ends, and the `while let` below will continue until there is an error (or
    // something else shuts down the whole system here!).
    let mut debouncer = notify_debouncer_full::new_debouncer(
-      Duration::from_secs(1),
+      Duration::from_millis(250),
       /*tick_rate */ None,
       move |result| {
          if let Err(e) = tx.blocking_send(result) {
