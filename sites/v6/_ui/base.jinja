@@ -30,43 +30,72 @@
             Trace: 5,
          };
 
-         let ws = new WebSocket('http://localhost:24747/live-reload');
-         debug('created WebSocket instance');
+         /** @type {number | null} */
+         let reconnectInterval = null;
 
-         ws.addEventListener('error', (event) => {
-            error('error:', event);
-         });
+         /** @type {WebSocket | null} */
+         let ws = null;
 
-         ws.addEventListener('close', (closeEvent) => {
-            let message = `closed because ${closeEvent.reason}`;
-            if (closeEvent.wasClean) {
-               debug(message);
-            } else {
-               error(message, closeEvent.code);
-            }
-         });
+         connect();
 
-         ws.addEventListener('message', (message) => {
-            console.log('got message', message);
-            // TODO:
-            //
-            // 1. Update the Serde config to send this as `type: 'Reload', values: ...`.
-            // 2. Only reload if the path is relevant.
-            let payload;
-            try {
-               payload = JSON.parse(message.data);
-               debug('Parsed JSON payload of WebSocket message', payload);
-            } catch (e) {
-               error('Error deserializing WebSocket message', e);
-            }
+         function connect() {
+            // TODO: this *must* be injected serve-side because otherwise the
+            // port handling can never work on anything *but* the default.
+            ws = new WebSocket('ws://localhost:24747/live-reload');
+            debug('created WebSocket instance');
 
-            if (payload.Reload) {
-               debug('Specified reload paths were:', message.data.Reload);
-               location.reload();
-            }
-         });
+            ws.addEventListener('open', (event) => {
+               debug('WebSocket connection opened');
+               if (reconnectInterval) {
+                  clearInterval(reconnectInterval);
+                  reconnectInterval = null;
+               }
+            });
 
-         debug('added all WebSocket listeners');
+            ws.addEventListener('error', (event) => {
+               error('error:', event);
+            });
+
+            ws.addEventListener('close', (closeEvent) => {
+               let message = `closed because ${closeEvent.reason}`;
+               if (closeEvent.wasClean) {
+                  debug(message);
+               } else {
+                  // might handle this distinctively for expected closures.
+                  error(message, closeEvent.code);
+               }
+
+               if (!reconnectInterval) {
+                  info('connection closed');
+                  reconnectInterval = setInterval(() => {
+                     debug('attempting to reconnect…')
+                     connect();
+                  }, 5_000);
+               }
+            });
+
+            ws.addEventListener('message', (message) => {
+               console.log('got message', message);
+               // TODO:
+               //
+               // 1. Update the Serde config to send this as `type: 'Reload', values: ...`.
+               // 2. Only reload if the path is relevant.
+               let payload;
+               try {
+                  payload = JSON.parse(message.data);
+                  debug('Parsed JSON payload of WebSocket message', payload);
+               } catch (e) {
+                  error('Error deserializing WebSocket message', e);
+               }
+
+               if (payload.Reload) {
+                  debug('Specified reload paths were:', message.data.Reload);
+                  location.reload();
+               }
+            });
+
+            debug('added all WebSocket listeners');
+         }
 
          function setLogLevel(value) {
             globalThis.localStorage.setItem('lx:logLevel', value);
