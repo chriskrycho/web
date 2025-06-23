@@ -22,7 +22,6 @@
 
       &:visited {
          color: var(--link-visited);
-         // text-decoration-color: var(--link-visited-underline);
          &:hover,
          &:active {
             color: var(--link-visited-hover);
