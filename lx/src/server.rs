@@ -49,7 +49,7 @@ use crate::{
 
 /// Serve the site, blocking on the result (i.e. blocking forever until it is
 /// killed by some kind of signal or failure).
-pub fn serve(site_dir: &Path) -> Result<(), Error> {
+pub fn serve(site_dir: &Path, port: Option<u16>) -> Result<(), Error> {
    // Instead of making `main` be `async` (regardless of whether it needs it, as
    // many operations do *not*), make *this* function handle it. An alternative
    // would be to do this same basic wrapping in `main` but only for this.
@@ -84,7 +84,7 @@ pub fn serve(site_dir: &Path) -> Result<(), Error> {
    let (change_tx, _) = broadcast::channel(8);
    let (rebuild_tx, _) = broadcast::channel(8);
 
-   let serve_handle = rt.spawn(serve_in(config.output.clone(), rebuild_tx.clone()));
+   let serve_handle = rt.spawn(serve_in(config.output.clone(), port, rebuild_tx.clone()));
    let watch_handle = rt.spawn(watch_in(site_dir.clone(), change_tx.clone()));
    let rebuild_handle =
       rt.spawn(rebuild(site_dir, config, md, change_tx, rebuild_tx.clone()));
@@ -160,7 +160,11 @@ async fn rebuild(
    Ok(())
 }
 
-async fn serve_in(path: PathBuf, state: broadcast::Sender<Rebuild>) -> Result<(), Error> {
+async fn serve_in(
+   path: PathBuf,
+   port: Option<u16>,
+   state: broadcast::Sender<Rebuild>,
+) -> Result<(), Error> {
    // This could be extracted into its own function.
    let serve_dir = ServeDir::new(&path).append_index_html_on_directories(true);
    let router = Router::new()
@@ -169,7 +173,8 @@ async fn serve_in(path: PathBuf, state: broadcast::Sender<Rebuild>) -> Result<()
       .route("/live-reload", routing::get(websocket_upgrade))
       .with_state(state);
 
-   let addr = SocketAddr::from(([127, 0, 0, 1], 24747)); // 24747 = CHRIS on a phone 🤣
+   let port = port.unwrap_or(24747);
+   let addr = SocketAddr::from(([0, 0, 0, 0], port));
    let listener = TcpListener::bind(addr)
       .await
       .map_err(|e| Error::BadAddress {
@@ -177,7 +182,12 @@ async fn serve_in(path: PathBuf, state: broadcast::Sender<Rebuild>) -> Result<()
          source: e,
       })?;
 
-   info!("→ Serving\n\tat: http://{addr}\n\tfrom {}", path.display());
+   let local_ip = local_ip_address::local_ip().expect("can always get my own IP address");
+
+   info!(
+      "→ Serving\n\tlocal: http://127.0.0.1:{port}\n\tnetwork: http://{local_ip}:{port}\n\tfrom {}",
+      path.display()
+   );
 
    axum::serve(listener, router)
       .await

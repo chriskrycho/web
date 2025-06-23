@@ -57,7 +57,10 @@ fn main() -> Result<(), anyhow::Error> {
          Ok(())
       }
 
-      Command::Develop { site_directory } => {
+      Command::Develop {
+         site_directory,
+         port,
+      } => {
          let directory = site_directory.unwrap_or_else(|| {
             info!(
                "No directory passed, using current working directory ({}) instead",
@@ -73,7 +76,7 @@ fn main() -> Result<(), anyhow::Error> {
             ));
          }
 
-         serve(&directory)?;
+         serve(&directory, port)?;
          Ok(())
       }
 
@@ -287,7 +290,13 @@ enum Command {
 
    /// Build and serve the site for development
    #[clap(aliases = ["d", "dev", "s", "serve"])]
-   Develop { site_directory: Option<PathBuf> },
+   Develop {
+      site_directory: Option<PathBuf>,
+
+      /// Port to serve the site on. Defaults to `24747`, i.e, "Chris"
+      #[arg(short, long)]
+      port: Option<u16>,
+   },
 
    /// Straight to the config. Give me completions for my own dang tool
    Completions,
