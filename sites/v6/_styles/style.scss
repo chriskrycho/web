@@ -1,7 +1,11 @@
+// These are all foundational.
 @use './baselines';
 @use './colors';
 @use './typography';
 @use './animation';
+
+// Whereas components *use* the foundational layers.
+@use './components';
 
 // TODO: drop this once its contributions have been integrated.
 @use './from-cascadea';
