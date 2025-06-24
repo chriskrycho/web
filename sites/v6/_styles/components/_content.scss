@@ -50,4 +50,23 @@
       font-variant: all-small-caps;
       letter-spacing: 0.05em;
    }
+
+   h2 {
+      font-family: var(--serif-alt);
+      font-weight: 400;
+      font-size: 1.8rem;
+   }
+
+   h3 {
+      font-family: var(--serif-alt);
+      font-weight: 400;
+      font-size: 1.4rem;
+   }
+
+   h4 {
+      font-family: var(--sans);
+      font-size: 1.2rem;
+      font-weight: 350;
+      // font-style: italic;
+   }
 }
