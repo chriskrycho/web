@@ -8,12 +8,21 @@
    --lh: var(--min-line-height);
    --lh-rem: calc(var(--lh) * 1rem);
    --lh-code-block: 1.1875;
+
+   --padding: 0.25lh;
 }
 
-@media screen and (min-width: 768px) {
+@media screen and (min-width: 768px) and (min-height: 540px) {
    :root {
       --fs-base: 13pt;
       --lh: 1.45;
+      --padding: 0.67lh;
+   }
+}
+
+@media screen and (min-width: 1280px) and (min-height: 768px) {
+   :root {
+      --padding: 0.75lh;
    }
 }
 

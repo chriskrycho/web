@@ -1,5 +1,8 @@
 .content {
+   --max-width: 37rem;
+
    font-family: var(--serif);
+   max-width: var(--max-width);
 
    a:any-link {
       text-decoration-skip-ink: auto;
@@ -29,5 +32,22 @@
          color: var(--link-visited-hover);
          text-decoration-color: var(--link-visited-hover-underline);
       }
+   }
+
+   p + p {
+      text-indent: 1lh;
+      margin-top: 0;
+   }
+
+   ul,
+   ol {
+      margin-block: 1lh;
+      padding-inline-start: 1lh;
+      margin-trim: block;
+   }
+
+   abbr {
+      font-variant: all-small-caps;
+      letter-spacing: 0.05em;
    }
 }
