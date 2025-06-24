@@ -67,6 +67,9 @@
       font-family: var(--sans);
       font-size: 1.2rem;
       font-weight: 350;
-      // font-style: italic;
+   }
+
+   pre:has(code) {
+      margin-block: var(--padding);
    }
 }
