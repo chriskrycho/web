@@ -5,20 +5,21 @@
    --mono: Berkeley Mono, ui-monospace, monospace;
    --fs-base: 12pt;
    --min-line-height: 1.375;
-   --line-height: var(--min-line-height);
-   --line-height-code-block: 1.1875;
+   --lh: var(--min-line-height);
+   --lh-rem: calc(var(--lh) * 1rem);
+   --lh-code-block: 1.1875;
 }
 
 @media screen and (min-width: 768px) {
    :root {
       --fs-base: 13pt;
-      --line-height: 1.45;
+      --lh: 1.45;
    }
 }
 
 html {
    font-size: var(--fs-base);
-   line-height: var(--line-height);
+   line-height: var(--lh);
 }
 
 code {
@@ -31,7 +32,7 @@ code {
 
 // For future me: line-height has to go on the `pre`, not on the `code`.
 pre:not(.poetry) {
-   line-height: var(--line-height-code-block);
+   line-height: var(--lh-code-block);
 }
 
 pre code {

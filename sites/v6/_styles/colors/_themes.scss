@@ -3,16 +3,18 @@
    --bg: light-dark(var(--gray-6), var(--gray-0));
    --fg: light-dark(var(--gray-0), var(--gray-5));
 
+   --bg-root: light-dark(var(--gray-5), var(--gray-1));
+
    --link: light-dark(var(--blue-1), var(--blue-4));
    --link-underline: var(--gray-4);
    --link-hover: light-dark(var(--blue-0), var(--gray-6));
    --link-hover-underline: light-dark(var(--blue-2), var(--blue-2));
    --link-visited: light-dark(var(--purple-1), var(--purple-5));
-   --link-visited-underline: light-dark(var(--link-underline), var(--gray-6));
+   --link-visited-underline: hsl(from var(--gray-4) h s l / 0%);
    --link-visited-hover: light-dark(var(--purple-0), var(--gray-6));
-   --link-visited-hover-underline: var(--purple-4);
+   --link-visited-hover-underline: var(--purple-5);
 
-   --root-bg: light-dark(var(--gray-5), var(--gray-1));
+   --border: light-dark(var(--gray-4), var(--gray-2));
 }
 
 .light:root {

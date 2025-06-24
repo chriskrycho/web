@@ -13,13 +13,10 @@
       color: var(--link);
       text-decoration-color: var(--link-underline);
 
-      &:hover {
-         text-decoration-color: var(--link-hover-underline);
-      }
-
       &:hover,
       &:active {
          color: var(--link-hover);
+         text-decoration-color: var(--link-hover-underline);
       }
    }
 

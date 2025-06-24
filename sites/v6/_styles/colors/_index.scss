@@ -1,7 +1,2 @@
 @use './colors';
 @use './themes';
-
-html {
-   color: var(--fg);
-   background: var(--bg);
-}

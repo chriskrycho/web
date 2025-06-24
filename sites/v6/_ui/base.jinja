@@ -14,9 +14,11 @@
       {% block feeds %}{% endblock %}
   </head>
   <body>
+      <main>
       {% block body %}
          {{ content }}
       {% endblock %}
+      </main>
 
       {# TODO: inject this in dev builds #}
       {# TODO: write it in in a way that can be nicely checked! #}
