@@ -20,7 +20,7 @@ use crate::{
    },
    error::write_to_fmt,
    page::{self, Page, Source},
-   templates,
+   style, templates,
 };
 
 pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
@@ -216,27 +216,29 @@ pub fn build(
       emit(&path, &buf)?;
    }
 
-   for sass_file in site_files
+   for css_file in site_files
       .styles
       .into_iter()
       // only build the “root” files
       .filter(|path| {
          !path
             .file_name()
-            .expect("all Sass files have file names")
+            .expect("all CSS files have file names")
             .to_str()
+            // TODO: switch to the crate that makes this trivial
             .expect("I don’t bother with non-UTF-8 file names")
             .starts_with("_")
       })
    {
-      debug!("building sass for {}", sass_file.display());
-      let converted = grass::from_path(&sass_file, &grass::Options::default())?;
+      debug!("building CSS for {}", css_file.display());
+      // TODO: pass in build mode. Maybe also move it to top level?
+      let converted = style::convert(&css_file, style::Mode::Dev)?;
       let relative_path =
-         sass_file
+         css_file
             .strip_prefix(input_dir.join("_styles"))
             .map_err(|_| Error::StripPrefix {
                prefix: input_dir.to_owned(),
-               path: sass_file.clone(),
+               path: css_file.clone(),
             })?;
 
       let path = config.output.join(relative_path).with_extension("css");
@@ -358,10 +360,10 @@ pub enum Error {
    #[error("could not strip prefix '{prefix}' from path '{path}'")]
    StripPrefix { prefix: PathBuf, path: PathBuf },
 
-   #[error("error compiling SCSS")]
-   Sass {
+   #[error("error compiling CSS")]
+   Styles {
       #[from]
-      source: Box<grass::Error>,
+      source: style::Error,
    },
 
    #[error("invalid template path {path}")]
@@ -484,7 +486,7 @@ impl SiteFiles {
          data,
          templates: resolved_paths_for(&format!("{root}/{}/*.jinja", UI_DIR.display()))?,
          static_files: resolved_paths_for(&format!("{root}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{root}/_styles/**/*.scss"))?,
+         styles: resolved_paths_for(&format!("{root}/_styles/**/*.css"))?,
       };
 
       Ok(site_files)

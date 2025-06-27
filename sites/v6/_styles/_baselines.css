@@ -1,4 +1,4 @@
-/**
+/*
    These are mostly my own opinions, but the following is also derived in small
    part from:
 
@@ -9,14 +9,14 @@
 *,
 *::before,
 *::after {
-   // box-sizing: border-box;
+   /* box-sizing: border-box; */
 }
 
 html {
-   // Prevent adjustments of font size after orientation changes in iOS.
+   /* Prevent adjustments of font size after orientation changes in iOS. */
    -webkit-text-size-adjust: 100%;
-   // This makes rendering on Safari and Chrome on macOS desktop match rendering
-   // basically everywhere else.
+   /* This makes rendering on Safari and Chrome on macOS desktop match rendering basically
+      everywhere else. */
    -webkit-font-smoothing: antialiased;
 
    padding: 0;
@@ -43,9 +43,7 @@ figure {
    margin: 0;
 }
 
-/**
-   Prevent `sub` and `sup` elements from affecting the line height in all browsers.
- */
+/* Prevent `sub` and `sup` elements from affecting the line height in all browsers. */
 sub,
 sup {
    font-size: 75%;

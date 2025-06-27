@@ -1,20 +1,22 @@
-// This is a combination of two “resets”:
-//
-// - Josh Comeau’s reset (https://www.joshwcomeau.com/css/custom-css-reset/).
-// - normalize.css (github.com/necolas/normalize.css)
-//
-// In addition, I have a number of my own opinions layered in!
+/* This is a combination of two “resets”:
 
+   - Josh Comeau’s reset (https://www.joshwcomeau.com/css/custom-css-reset/).
+   - normalize.css (github.com/necolas/normalize.css
+  
+   In addition, I have a number of my own opinions layered in!
+ */
 /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
 
 /* 1. Use a more-intuitive box-sizing model */
-// TODO: enable after checking it doesn’t mess up any of the existing styles, or (better)
-// figuring out what it changes and *fixing* it.
-// *,
-// *::before,
-// *::after {
-//    box-sizing: border-box;
-// }
+/* TODO: enable after checking it doesn’t mess up any of the existing styles, or (better)
+   figuring out what it changes and *fixing* it. */
+/*
+*,
+*::before,
+*::after {
+   box-sizing: border-box;
+}
+*/
 
 /* 2. Remove default margin */
 * {

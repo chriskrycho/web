@@ -1,7 +1,7 @@
 .main-nav {
    font-family: var(--text-alt);
    font-weight: var(--text-alt-weight);
-   grid-column: span 4; // TODO: NOPE
+   grid-column: span 4; /* TODO: NOPE */
 
    ul {
       list-style: none;

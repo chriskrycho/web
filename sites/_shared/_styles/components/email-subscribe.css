@@ -12,7 +12,7 @@
 .email-subscribe__label {
    flex: 0 0 auto;
    line-height: 1.5em;
-   padding: 2pt 0; // account for form weirdness
+   padding: 2pt 0; /* account for form weirdness */
 }
 
 .email-subscribe__email {

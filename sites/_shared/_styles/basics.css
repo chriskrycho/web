@@ -1,6 +1,6 @@
-// Shared/baseline styles used everywhere. This list is and should remain short.
-// One goal for this particular little style sheet is that none of the ordering
-// in it should matter other than the opening `html` declaration.
+/* Shared/baseline styles used everywhere. This list is and should remain short.
+   One goal for this particular little style sheet is that none of the ordering
+   in it should matter other than the opening `html` declaration. */
 
 html {
    font-family: var(--text);

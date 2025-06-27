@@ -1,5 +1,6 @@
 //! Run the static site generator.
 
+use std::fs;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 
@@ -23,8 +24,8 @@ mod error;
 mod feed;
 mod md;
 mod page;
-mod sass;
 mod server;
+mod style;
 mod templates;
 
 use crate::build::build_in;
@@ -101,9 +102,17 @@ fn main() -> Result<(), anyhow::Error> {
          Ok(())
       }
 
-      Command::Sass { paths } => {
-         let (input, mut dest) = parse_paths(paths)?;
-         sass::convert(input, dest.writer())?;
+      Command::Styles { paths, minify } => {
+         // TODO: make Mode a top-level concern
+         let css = style::convert(
+            &paths.input,
+            if minify {
+               style::Mode::Prod
+            } else {
+               style::Mode::Dev
+            },
+         )?;
+         fs::write(paths.output, css)?;
          Ok(())
       }
 
@@ -326,10 +335,13 @@ enum Command {
    /// Process one or more Sass/SCSS files exactly the same way `lx` does.
    ///
    /// (Does not compress styles the way a prod build does.)
-   Sass {
+   Styles {
       /// The entry points to process.
       #[clap(flatten)]
-      paths: Paths,
+      paths: StylePaths,
+
+      #[arg(short, long)]
+      minify: bool,
    },
 }
 
@@ -363,6 +375,19 @@ struct Paths {
    /// Where to print the output. Will use `stdout` if not supplied.
    #[arg(short, long)]
    output: Option<PathBuf>,
+
+   /// If the supplied `output` file is present, overwrite it.
+   #[arg(long, default_missing_value("true"), num_args(0..=1), require_equals(true))]
+   force: Option<bool>,
+}
+
+#[derive(Args, Debug, PartialEq, Clone)]
+struct StylePaths {
+   #[arg()]
+   input: PathBuf,
+
+   #[arg()]
+   output: PathBuf,
 
    /// If the supplied `output` file is present, overwrite it.
    #[arg(long, default_missing_value("true"), num_args(0..=1), require_equals(true))]
@@ -413,12 +438,11 @@ fn parse_paths(paths: Paths) -> Result<ParsedPaths, anyhow::Error> {
 pub(crate) fn input_buffer(path: Option<&PathBuf>) -> Result<Box<dyn Read>, Error> {
    let buf = match path {
       Some(path) => {
-         let file =
-            std::fs::File::open(path).map_err(|source| Error::CouldNotOpenFile {
-               path: path.to_owned(),
-               reason: FileOpenReason::Read,
-               source,
-            })?;
+         let file = fs::File::open(path).map_err(|source| Error::CouldNotOpenFile {
+            path: path.to_owned(),
+            reason: FileOpenReason::Read,
+            source,
+         })?;
 
          Box::new(BufReader::new(file)) as Box<dyn Read>
       }
@@ -437,7 +461,7 @@ fn output_buffer(dest_cfg: &DestCfg) -> Result<Dest, Error> {
             path: path.to_owned(),
          })?;
 
-         std::fs::create_dir_all(dir).map_err(|source| Error::CreateDirectory {
+         fs::create_dir_all(dir).map_err(|source| Error::CreateDirectory {
             dir: dir.to_owned(),
             path: path.to_owned(),
             source,
@@ -454,12 +478,11 @@ fn output_buffer(dest_cfg: &DestCfg) -> Result<Dest, Error> {
             return Err(Error::FileExists(path.to_owned()));
          }
 
-         let file =
-            std::fs::File::create(path).map_err(|source| Error::CouldNotOpenFile {
-               path: path.clone(),
-               reason: FileOpenReason::Write,
-               source,
-            })?;
+         let file = fs::File::create(path).map_err(|source| Error::CouldNotOpenFile {
+            path: path.clone(),
+            reason: FileOpenReason::Write,
+            source,
+         })?;
 
          Ok(Dest::File {
             path: path.clone(),

@@ -1,0 +1,109 @@
+@import '../foundations/grid.css';
+
+/* Consider resetting scoping using scoped styles once they are generally available. */
+.link-page {
+   header {
+      display: contents;
+      margin-bottom: 1em;
+   }
+
+   .link-section {
+      /* subgrid */
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-template-rows: auto;
+      gap: var(--grid-base);
+
+      grid-column: 1 / -1;
+      align-content: start;
+
+      h1 {
+         grid-column: 1 / -1;
+         text-align: center;
+      }
+   }
+
+   .links {
+      /* subgrid */
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-template-rows: auto;
+      gap: var(--grid-base);
+
+      grid-column: 1 / -1;
+      row-gap: 0.4em;
+      padding: 0;
+      margin: 0;
+
+      .item {
+         display: contents;
+         list-style: none;
+      }
+
+      .link {
+         grid-column: 1 / -1;
+         text-align: center;
+         padding: 1em 2em;
+         background: var(--bg-secondary);
+      }
+
+      a.link:hover {
+         background: var(--fg);
+         color: var(--bg);
+      }
+   }
+
+   .background {
+      grid-column: 1 / -1;
+   }
+}
+
+.featured-item.listen {
+   margin-bottom: 1em;
+}
+
+@media screen and (min-width: 540px) {
+   .link-page .link-section {
+      grid-column: span 3;
+   }
+
+   .featured-item.listen {
+      grid-column: 1 / -1;
+   }
+}
+
+@media screen and (min-width: 960px) {
+   .link-page {
+      .link-section {
+         grid-column: span 4;
+      }
+
+      .background {
+         grid-column: 2 / span 6;
+      }
+   }
+
+   .featured-item.listen {
+      grid-column: 3 / span 4;
+   }
+}
+
+@media screen and (min-width: 1280px) {
+   .link-page {
+      .link-section {
+         grid-column: span 5;
+      }
+
+      .link-section.buy {
+         grid-column: 2 / span 5;
+      }
+
+      .background {
+         grid-column: 4 / span 6;
+      }
+   }
+
+   .featured-item.content.listen {
+      grid-column: 4 / span 6;
+   }
+}

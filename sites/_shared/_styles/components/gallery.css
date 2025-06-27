@@ -1,5 +1,4 @@
-// A grid
-// https://css-tricks.com/a-grid-of-logos-in-squares/
+/* A grid https://css-tricks.com/a-grid-of-logos-in-squares/ */
 .gallery {
 }
 
@@ -30,6 +29,7 @@
    transform: translate(-50%, -50%);
 }
 
-.gallery figure::before .gallery figure img {
+.gallery figure::before,
+.gallery figure img {
    grid-area: 1 / 1 / 2 / 2;
 }

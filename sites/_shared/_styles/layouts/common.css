@@ -1,0 +1,32 @@
+@import '../foundations/grid.css';
+@import '../foundations/type.css';
+
+main {
+   /* subgrid */
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+
+   grid-column: 1 / -1;
+}
+
+.container {
+   margin: var(--grid-base);
+
+   display: grid;
+   grid-template-columns: repeat(4, minmax(0, 1fr));
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+   align-items: start;
+   align-content: start;
+}
+
+.work {
+   font-family: var(--sanomat-stack);
+}
+
+.work-info {
+   font-family: var(--sanomat-stack);
+   font-weight: 400;
+}

@@ -1,9 +1,8 @@
-@use '../foundations/breakpoints';
-@use '../foundations/grid';
+@import '../foundations/grid.css';
 
 .site-header {
-   // I don't love having these here, but it beats repeating them elsewhere.
-   @include grid.margin-bottom-grid;
+   /* I don't love having these here, but it beats repeating them elsewhere. */
+   margin-bottom: var(--grid-base);
    grid-column: 1 / -1;
 
    a,

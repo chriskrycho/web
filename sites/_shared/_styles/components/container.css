@@ -1,7 +1,7 @@
-// The big container that holds all the primary content: header, main, etc.
+/* The big container that holds all the primary content: header, main, etc. */
 
-@use '../foundations';
-@use '../foundations/grid';
+@import '../foundations/_index.css';
+@import '../foundations/grid.css';
 
 .container {
    background: var(--bg);

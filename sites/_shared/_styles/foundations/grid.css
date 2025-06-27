@@ -1,0 +1,37 @@
+.section-break {
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-column: 1 / -1;
+   width: 100%;
+   border: 0;
+   height: 0;
+   background: none;
+   margin-block: var(--grid-base);
+}
+
+.section-break::after {
+   content: '';
+   height: 1px;
+   background: var(--brown);
+   @include grid-cols(4);
+   display: block;
+}
+
+@media screen and (min-width: 540px) {
+   .section-break::after {
+      grid-column-start: 2;
+      grid-column-end: span 4;
+   }
+}
+
+@media screen and (min-width: 960px) {
+   .section-break::after {
+      grid-column-start: 3;
+   }
+}
+
+@media screen and (min-width: 1280px) {
+   .section-break::after {
+      grid-column-start: 5;
+   }
+}

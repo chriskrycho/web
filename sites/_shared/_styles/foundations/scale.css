@@ -1,0 +1,97 @@
+/* Reference sizes:
+
+- 360×780 (iPhone 13 Mini)
+- 1,180×820 (iPad)
+*/
+
+:root {
+   --base-size: 14px;
+   --grid-base: 16px;
+
+   /* Rounded to whole numbers from https://www.modularscale.com/?14&px&1.333 */
+   --fs-3: 6px;
+   --fs-2: 8px;
+   --fs-1: 11px;
+   --fs0: 14px;
+   --fs1: 19px;
+   --fs2: 25px;
+   --fs3: 33px;
+   --fs4: 44px;
+   --fs5: 59px;
+}
+
+@media screen and (min-width: 540px) {
+   :root {
+      --base-size: 15px;
+      --grid-base: 24px;
+
+      /* Rounded to whole numbers from https://www.modularscale.com/?15&px&1.333 */
+      --fs-3: 6px;
+      --fs-2: 8px;
+      --fs-1: 11px;
+      --fs0: 15px;
+      --fs1: 20px;
+      --fs2: 27px;
+      --fs3: 36px;
+      --fs4: 47px;
+      --fs5: 63px;
+   }
+}
+
+@media screen and (min-width: 960px) {
+   :root {
+      --base-size: 16px;
+      --grid-base: 28px;
+
+      /* Rounded to whole numbers from https://www.modularscale.com/?16&px&1.333 */
+      --fs-3: 7px;
+      --fs-2: 9px;
+      --fs-1: 12px;
+      --fs0: 16px;
+      --fs1: 21px;
+      --fs2: 28px;
+      --fs3: 38px;
+      --fs4: 51px;
+      --fs5: 67px;
+
+      --text-lh: 1.5;
+      --text-alt-lh: 1.4;
+   }
+}
+
+/* Rough guess, more later! */
+@media screen and (min-width: 1280px) {
+   :root {
+      --base-size: 17px;
+      --grid-base: 32px;
+
+      /* Rounded to whole numbers from https://www.modularscale.com/?16&px&1.333 */
+      --fs-3: 7px;
+      --fs-2: 10px;
+      --fs-1: 13px;
+      --fs0: 17px;
+      --fs1: 23px;
+      --fs2: 30px;
+      --fs3: 40px;
+      --fs4: 54px;
+      --fs5: 72px;
+   }
+}
+
+@media screen and (min-width: 1600px) {
+   :root {
+      --base-size: 18px;
+      --grid-base: 36px;
+
+      /* Rounded to whole numbers from https://www.modularscale.com/?18&px&1.333 */
+      --fs-3: 8px;
+      --fs-2: 10px;
+      --fs-1: 14px;
+      --fs0: 18px;
+      --fs1: 24px;
+      --fs2: 32px;
+      --fs3: 43px;
+      --fs4: 57px;
+      --fs5: 76px;
+   }
+}

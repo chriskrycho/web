@@ -1,0 +1,49 @@
+:root {
+    --serif: MD Lórien, Big Caslon, Georgia, serif;
+    --sans: Sanomat Sans Text, Avenir Next, Avenir, sans-serif;
+    --serif-alt: Sanomat, Georgia, serif;
+    --mono: Berkeley Mono, ui-monospace, monospace;
+    --fs-base: 12pt;
+    --min-line-height: 1.375;
+    --lh: var(--min-line-height);
+    --lh-rem: calc(var(--lh) * 1rem);
+    --lh-code-block: 1.1875;
+
+    --padding: 0.25lh;
+}
+
+@media screen and (min-width: 768px) and (min-height: 540px) {
+    :root {
+        --fs-base: 13pt;
+        --lh: 1.45;
+        --padding: 0.67lh;
+    }
+}
+
+@media screen and (min-width: 1280px) and (min-height: 768px) {
+    :root {
+        --padding: 0.75lh;
+    }
+}
+
+html {
+    font-size: var(--fs-base);
+    line-height: var(--lh);
+}
+
+code {
+    font-family:
+        Berkeley Mono,
+        monospace;
+    font-size: 1rem;
+    font-size-adjust: ex-height 0.475;
+}
+
+/* For future me: line-height has to go on the `pre`, not on the `code`. */
+pre:has(code) {
+    line-height: var(--lh-code-block);
+}
+
+pre code {
+    font-size: 0.9rem;
+}

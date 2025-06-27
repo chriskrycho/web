@@ -1,0 +1,285 @@
+@import '../../_shared/_styles/_index.css';
+
+/* Not bothering extracting this until I have a *reason* to do so. */
+.avatar {
+   grid-column-end: span 2;
+}
+
+.about,
+.featured-item,
+.sketch-to-sound {
+   grid-column-end: span 4;
+}
+
+.subscribe {
+   grid-column: 1 / -1;
+   /* subgrid */
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+
+   h1 {
+      grid-column: 1 / -1;
+   }
+}
+
+.options {
+   grid-column: 1 / -1;
+   /* subgrid */
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+}
+
+.newsletter,
+.music-services,
+.social-media {
+   grid-column-end: span 4;
+}
+
+.option h2 {
+   margin-top: var(--fs-2);
+}
+
+.buttondown {
+   font-size: var(--fs-2);
+   font-family: var(--text-alt);
+}
+
+.featured {
+   grid-column: 1 / -1;
+
+   /* subgrid */
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+
+   grid-template-columns: subgrid;
+}
+
+.featured-item {
+   grid-column: 1 / -1;
+
+   /* subgrid */
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-template-rows: auto;
+   gap: var(--grid-base);
+
+   grid-template-columns: subgrid;
+   grid-auto-rows: min-content;
+
+   header,
+   .embed,
+   .links,
+   p {
+      grid-column: 1 / -1;
+      grid-row-end: span 1;
+   }
+
+   header h1 {
+      font-weight: 500;
+      font-style: italic;
+   }
+
+   header h2 {
+      font-family: Frame Head;
+      font-weight: 400;
+   }
+}
+
+.medium {
+   display: none;
+}
+
+@media screen and (min-width: 720px) {
+   .medium {
+      display: inherit;
+   }
+}
+
+@media screen and (min-width: 540px) {
+   .about {
+      grid-column: 1 / -1;
+   }
+
+   .sketch-to-sound {
+      grid-column-end: span 6;
+   }
+
+   .featured-item {
+      grid-column-end: span 5;
+   }
+
+   .featured-item:nth-of-type(2) {
+      grid-column-start: 2;
+   }
+
+   .subscribe h1 {
+      text-align: center;
+   }
+
+   .newsletter {
+      grid-column-end: span 6;
+   }
+
+   .music-services,
+   .social-media {
+      grid-column-end: span 3;
+   }
+}
+
+@media screen and (min-width: 720px) {
+   .avatar {
+      grid-column-end: span 2;
+   }
+
+   .about {
+      grid-column-start: auto;
+      grid-column-end: span 4;
+   }
+}
+
+@media screen and (min-width: 960px) {
+   .avatar {
+      grid-column-start: 2;
+   }
+
+   .about {
+      grid-column-start: auto;
+      grid-column-end: span 4;
+   }
+
+   .sketch-to-sound {
+      grid-column-start: 2;
+   }
+
+   .featured-item:nth-of-type(2) {
+      grid-column-start: auto;
+   }
+
+   .featured-item:nth-of-type(3) {
+      grid-column-start: 3;
+   }
+
+   .featured {
+      grid-template-columns: subgrid;
+      grid-template-rows: repeat(3, auto);
+   }
+
+   .featured-item {
+      grid-column-end: span 4;
+
+      /* subgrid */
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-template-rows: auto;
+      gap: var(--grid-base);
+
+      grid-template-columns: subgrid;
+      grid-auto-rows: min-content;
+
+      header,
+      .embed,
+      .links {
+         grid-column: 1 / -1;
+         grid-row-end: span 1;
+      }
+   }
+
+   .newsletter {
+      grid-column-end: span 6;
+      grid-column-start: 2;
+   }
+
+   .music-services {
+      grid-column-start: 2;
+   }
+
+   .option h2 {
+      margin-top: 0;
+   }
+}
+
+@media screen and (min-width: 1280px) {
+   .avatar {
+      grid-column: 3 / span 3;
+   }
+
+   .about {
+      grid-column-end: span 5;
+   }
+
+   .sketch-to-sound {
+      grid-column-start: 4;
+      grid-column-end: span 6;
+   }
+
+   .featured {
+      grid-column: 1 / -1;
+
+      /* subgrid */
+      display: grid;
+      grid-template-columns: subgrid;
+      grid-template-rows: auto;
+      gap: var(--grid-base);
+
+      grid-template-columns: subgrid;
+      grid-template-rows: repeat(3, auto);
+   }
+
+   .featured-item {
+      grid-column-end: span 5;
+   }
+
+   .featured-item:nth-of-type(1) {
+      grid-column-start: 2;
+   }
+
+   .featured-item:nth-of-type(3) {
+      grid-column-start: 5;
+   }
+
+   .featured-item {
+      grid-template-columns: subgrid;
+      grid-auto-rows: min-content;
+
+      header,
+      .embed,
+      .links {
+         grid-column: 1 / -1;
+         grid-row-end: span 1;
+      }
+   }
+
+   .subscribe {
+      grid-column-start: 2;
+      grid-column-end: span 10;
+   }
+
+   .newsletter {
+      grid-column-end: span 5;
+   }
+
+   .music-services,
+   .social-media {
+      grid-column-end: span 2;
+   }
+
+   .music-services {
+      grid-column-start: auto;
+   }
+}
+
+@media screen and (min-width: 1600px) {
+   .avatar {
+      grid-column: 4 / span 2;
+   }
+
+   .about {
+      grid-column-end: span 4;
+   }
+}

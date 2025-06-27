@@ -1,8 +1,7 @@
-@use './breakpoints';
-@use './color';
-@use './grid';
-@use './scale';
-@use './type';
+@import './color.css';
+@import './grid.css';
+@import './scale.css';
+@import './type.css';
 
 @mixin shadow {
    --shadow-color: var(--blue);
