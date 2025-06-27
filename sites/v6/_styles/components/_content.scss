@@ -3,6 +3,7 @@
 
    font-family: var(--serif);
    max-width: var(--max-width);
+   text-wrap: pretty;
 
    a:any-link {
       text-decoration-skip-ink: auto;
@@ -71,5 +72,6 @@
 
    pre:has(code) {
       margin-block: var(--padding);
+      overflow-x: auto;
    }
 }

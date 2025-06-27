@@ -40,7 +40,7 @@ code {
 }
 
 // For future me: line-height has to go on the `pre`, not on the `code`.
-pre:not(.poetry) {
+pre:has(code) {
    line-height: var(--lh-code-block);
 }
 
