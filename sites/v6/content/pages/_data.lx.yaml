@@ -1,1 +1,2 @@
 layout: page.jinja
+# TODO: support setting path in lx.yaml files.
