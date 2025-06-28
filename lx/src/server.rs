@@ -107,6 +107,9 @@ pub fn serve(site_dir: &Path, port: Option<u16>) -> Result<(), Error> {
    }
 }
 
+// TODO: consider whether this needs to be `async`, and how it ought to interact with the
+//   change notifications as well as the Rayon threadpool that `build` will use under the
+//   hood for a bunch of its highly-parallelizable work.
 async fn rebuild(
    site_dir: Canonicalized,
    site_config: Config,
