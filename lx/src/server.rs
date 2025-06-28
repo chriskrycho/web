@@ -71,6 +71,8 @@ pub fn serve(site_dir: &Path, port: Option<u16>) -> Result<(), Error> {
    let config = config_for(&site_dir)?; // TODO: watch this separately?
    trace!("Computed config: {config:?}");
 
+   // TODO: consider how to loop on rebuild and changes and *not serve* until there has
+   // been a successful build.
    let first_build = build::build(&site_dir, &config, &md);
    if let Err(e) = first_build {
       eprintln!("Initial build failed: {e:?}");
@@ -79,8 +81,8 @@ pub fn serve(site_dir: &Path, port: Option<u16>) -> Result<(), Error> {
    // I only need the tx side, since I am going to take advantage of the fact that
    // `broadcast::Sender` implements `Clone` to pass it around and get easy and convenient
    // access to local receivers with `tx.subscribe()`. I would *prefer* simply to pass an
-   // owned receiver in each case, but Tokio has stupid bounds that make this not work for
-   // reasons not clear to me.
+   // owned receiver in each case, but Tokio has stupid bounds that make this not work
+   // because they always want to share everything across threads.
    let (change_tx, _) = broadcast::channel(8);
    let (rebuild_tx, _) = broadcast::channel(8);
 
