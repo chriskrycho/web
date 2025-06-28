@@ -10,7 +10,7 @@
    --link-hover: light-dark(var(--blue-0), var(--gray-6));
    --link-hover-underline: light-dark(var(--blue-2), var(--blue-2));
    --link-visited: light-dark(var(--purple-1), var(--purple-5));
-   --link-visited-underline: hsl(from var(--gray-4) h s l / 0%);
+   --link-visited-underline: var(--gray-4);
    --link-visited-hover: light-dark(var(--purple-0), var(--gray-6));
    --link-visited-hover-underline: var(--purple-5);
 

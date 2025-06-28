@@ -11,31 +11,34 @@
       transition:
          text-decoration-color var(--transition),
          color var(--transition);
+
    }
 
    a:link {
       color: var(--link);
       text-decoration-color: var(--link-underline);
+   }
 
-      &:hover,
-      &:active {
-         color: var(--link-hover);
-         text-decoration-color: var(--link-hover-underline);
-      }
+   a:link:hover,
+   a:link:active {
+      color: var(--link-hover);
+      text-decoration-color: var(--link-hover-underline);
    }
 
    a:visited {
       color: var(--link-visited);
       text-decoration-color: var(--link-visited-underline);
 
-      &:hover,
-      &:active {
-         color: var(--link-visited-hover);
-         text-decoration-color: var(--link-visited-hover-underline);
-      }
    }
 
-   p + p {
+   a:visited:hover,
+   a:visited:active {
+      color: var(--link-visited-hover);
+      text-decoration-color: var(--link-visited-hover-underline);
+
+   }
+
+   p+p {
       text-indent: 1lh;
       margin-top: 0;
    }
