@@ -1,0 +1,4 @@
+.qualifiers {
+   background: var(--qualifiers-bg);
+   margin-top: var(--qualifiers-border);
+}

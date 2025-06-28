@@ -15,6 +15,17 @@
    --link-visited-hover-underline: var(--purple-5);
 
    --border: light-dark(var(--gray-4), var(--gray-2));
+
+   --note-bg: light-dark(var(--blue-6), var(--blue-1));
+   --note-fg: light-dark(var(--blue-0), var(--blue-6));
+   --note-border: light-dark(var(--blue-1), var(--blue-3));
+
+   --qualifiers-bg: light-dark(var(--purple-7), var(--purple-1));
+   --qualifiers-border: light-dark(var(--purple-1), var(--purple-3));
+
+   --blockquote-border: light-dark(var(--blue-1), var(--blue-3));
+
+   --code-bg: light-dark(var(--gray-5), var(--gray-2));
 }
 
 .light:root {

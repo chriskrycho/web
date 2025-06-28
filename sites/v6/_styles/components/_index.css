@@ -1,4 +1,7 @@
 @import 'body.css';
 @import 'main.css';
 @import 'content.css';
+
 @import 'note.css';
+@import 'qualifiers.css';
+@import 'blockquote.css';

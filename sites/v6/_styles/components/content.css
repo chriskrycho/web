@@ -1,5 +1,6 @@
 .content {
-   --max-width: 37rem;
+   --max-width: 35rem;
+   padding: 2lh;
 
    font-family: var(--serif);
    max-width: var(--max-width);
@@ -54,25 +55,36 @@
 
    h2 {
       font-family: var(--serif-alt);
-      font-weight: 400;
-      font-size: 1.8rem;
+      font-weight: 600;
+      font-size: 2rem;
    }
 
    h3 {
       font-family: var(--serif-alt);
-      font-weight: 400;
+      font-weight: 500;
       font-size: 1.4rem;
    }
 
    h4 {
-      font-family: var(--sans);
+      font-family: var(--serif-alt);
+      font-weight: 400;
       font-size: 1.2rem;
-      font-weight: 350;
    }
 
+   h5 {
+      font-family: var(--sans);
+      font-weight: 500;
+      font-size: 1rem;
+   }
+
+   --special-margin: 0.75lh -0.75lh;
+   --special-padding: 0.25lh 0.75lh;
+
    pre:has(code) {
-      margin-block: var(--padding);
+      margin: var(--special-margin);
+      padding: var(--special-padding);
       overflow-x: auto;
+      background: var(--code-bg);
    }
 
    /* ----- Special content blocks ----- */
@@ -82,18 +94,11 @@
    nav,
    .note,
    .footnotes {
+      font-family: var(--sans);
       font-weight: 350;
       font-size-adjust: ex-height 0.48;
-      /*line-height: 1.45;*/
-   }
-
-   blockquote,
-   aside,
-   .qualifiers,
-   nav,
-   .note,
-   .footnotes {
-      margin: 0.25lh -0.75lh;
-      padding: 0.25lh 0.75lh;
+      margin: var(--special-margin);
+      padding: var(--special-padding);
+      line-height: var(--lh-sans);
    }
 }
