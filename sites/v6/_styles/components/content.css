@@ -11,7 +11,6 @@
       transition:
          text-decoration-color var(--transition),
          color var(--transition);
-
    }
 
    a:link {
@@ -28,17 +27,15 @@
    a:visited {
       color: var(--link-visited);
       text-decoration-color: var(--link-visited-underline);
-
    }
 
    a:visited:hover,
    a:visited:active {
       color: var(--link-visited-hover);
       text-decoration-color: var(--link-visited-hover-underline);
-
    }
 
-   p+p {
+   p + p {
       text-indent: 1lh;
       margin-top: 0;
    }
@@ -76,5 +73,27 @@
    pre:has(code) {
       margin-block: var(--padding);
       overflow-x: auto;
+   }
+
+   /* ----- Special content blocks ----- */
+   blockquote,
+   aside,
+   .qualifiers,
+   nav,
+   .note,
+   .footnotes {
+      font-weight: 350;
+      font-size-adjust: ex-height 0.48;
+      /*line-height: 1.45;*/
+   }
+
+   blockquote,
+   aside,
+   .qualifiers,
+   nav,
+   .note,
+   .footnotes {
+      margin: 0.25lh -0.75lh;
+      padding: 0.25lh 0.75lh;
    }
 }

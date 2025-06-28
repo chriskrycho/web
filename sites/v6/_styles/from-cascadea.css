@@ -9,31 +9,6 @@
 }
 
 .article-content {
-   blockquote,
-   aside,
-   .qualifiers,
-   nav,
-   .note,
-   .footnotes {
-      font-weight: 350;
-      font-size-adjust: ex-height 0.48;
-      /*line-height: 1.45;*/
-
-      p:first-child {
-         margin-top: 0;
-      }
-   }
-
-   blockquote,
-   aside,
-   .qualifiers,
-   nav,
-   .note,
-   .footnotes,
-   pre:not(.poetry) {
-      margin-block: 1lh;
-   }
-
    p {
       margin-block: 1lh;
    }
