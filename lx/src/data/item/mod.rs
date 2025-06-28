@@ -234,15 +234,27 @@ pub struct Qualifiers {
    pub retraction: Option<Retraction>,
 }
 
+impl Qualifiers {
+   pub fn needs_to_render(&self) -> bool {
+      self.audience.is_some()
+         || self.epistemic.is_some()
+         || self.context.is_some()
+         || self.discusses.is_some()
+         || self.disclosure.is_some()
+         || self.retraction.is_some()
+   }
+}
+
+// TODO: may not need this at all; just use `serial::Retraction`?
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Retraction(String);
+pub struct Retraction {
+   pub url: String,
+   pub title: String,
+}
 
 impl From<serial::Retraction> for Retraction {
    fn from(serial::Retraction { url, title }: serial::Retraction) -> Self {
-      let content = format!(
-         r#"<p><strong>Caveat lector:</strong> I have since retracted this (see <a href="{url}">{title}</a>), but as a matter of policy I leave even work I have retracted publicly available as a matter of record.<p>"#
-      );
-      Retraction(content)
+      Retraction { url, title }
    }
 }
 
