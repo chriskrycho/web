@@ -84,9 +84,7 @@ impl Metadata {
          .as_ref()
          .map(|work| work.title.clone())
          .or(item.title)
-         .ok_or_else(|| Error::MissingRequiredField {
-            name: "title".to_string(),
-         })?;
+         .ok_or_else(|| Error::MissingRequiredField { name: "title" })?;
 
       let metadata = Metadata {
          title,
@@ -468,7 +466,7 @@ impl From<serial::Video> for Video {
 #[derive(Error, Debug)]
 pub enum Error {
    #[error("missing required field '{name}'")]
-   MissingRequiredField { name: String },
+   MissingRequiredField { name: &'static str },
 
    #[error("bad field data")]
    BadField {
