@@ -1,7 +1,7 @@
 .content {
    --max-width: 35rem;
-   padding: 2lh;
 
+   padding: var(--padding);
    font-family: var(--serif);
    max-width: var(--max-width);
    text-wrap: pretty;
@@ -77,17 +77,26 @@
       font-size: 1rem;
    }
 
-   --special-margin: 0.75lh -0.75lh;
-   --special-padding: 0.25lh 0.75lh;
+   :not(pre) code {
+      background: var(--code-bg);
+      border: 0.5px solid var(--code-border);
+      border-radius: 3px;
+      padding: 0.5px 0.25lh;
+      line-height: 1;
+   }
 
    pre:has(code) {
-      margin: var(--special-margin);
-      padding: var(--special-padding);
+      margin: 0.5lh -0.75lh;
+      padding: 0.5lh 0.75lh;
       overflow-x: auto;
       background: var(--code-bg);
+      border-left: 2pt solid var(--code-border);
    }
 
    /* ----- Special content blocks ----- */
+   --special-margin: 0.75lh -0.75lh;
+   --special-padding: 0.25lh 0.75lh;
+
    blockquote,
    aside,
    .qualifiers,

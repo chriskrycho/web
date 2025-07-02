@@ -26,6 +26,7 @@
    --blockquote-border: light-dark(var(--blue-1), var(--blue-3));
 
    --code-bg: light-dark(var(--gray-5), var(--gray-2));
+   --code-border: var(--gray-4);
 }
 
 .light:root {
