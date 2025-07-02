@@ -2,10 +2,7 @@ use std::{fmt, sync::Arc};
 
 use minijinja::value::Object;
 
-use crate::data::{
-   config::NavItem,
-   item::{Qualifiers, Retraction},
-};
+use crate::data::{config::NavItem, item::Qualifiers};
 
 impl Object for NavItem {
    fn render(self: &Arc<Self>, f: &mut fmt::Formatter<'_>) -> fmt::Result
