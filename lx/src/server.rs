@@ -8,18 +8,18 @@ use std::{
 };
 
 use axum::{
+   Router,
    extract::{
-      ws::{Message, WebSocket}, State,
-      WebSocketUpgrade,
+      State, WebSocketUpgrade,
+      ws::{Message, WebSocket},
    },
    response::Response,
    routing::{self},
-   Router,
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
-   future::{self, Either}, SinkExt,
-   StreamExt,
+   SinkExt, StreamExt,
+   future::{self, Either},
 };
 use log::{debug, error, info, trace, warn};
 use lx_md::Markdown;
@@ -31,8 +31,8 @@ use tokio::{
    runtime::Runtime,
    sync::{
       broadcast::{
-         self, error::{RecvError, SendError},
-         Sender,
+         self, Sender,
+         error::{RecvError, SendError},
       },
       mpsc,
    },

@@ -6,8 +6,8 @@ use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
 use thiserror::Error;
 
-use super::first_pass;
 use super::FootnoteDefinitions;
+use super::first_pass;
 
 /// The second pass through the events is responsible for three tasks:
 ///

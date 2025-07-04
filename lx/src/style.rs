@@ -17,7 +17,7 @@ pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
       .map_err(|e| Error::Minify(format!("{e:?}")))?;
 
    let print_options = PrinterOptions {
-      minify:match mode {
+      minify: match mode {
          Mode::Dev => false,
          Mode::Prod => true,
       },
