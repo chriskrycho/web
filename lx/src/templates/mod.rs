@@ -1,11 +1,9 @@
 mod functions;
 mod rendering;
 
-use std::{
-   io::Write,
-   path::{Path, PathBuf},
-};
+use std::io::Write;
 
+use camino::{Utf8Path, Utf8PathBuf};
 use log::{debug, trace};
 use minijinja::Environment;
 use serde::Serialize;
@@ -27,19 +25,19 @@ pub enum Error {
    #[error("could not render template for {path}")]
    Render {
       source: minijinja::Error,
-      path: PathBuf,
+      path: Utf8PathBuf,
    },
 
    #[error("could not add template for {path}")]
    CouldNotAddTemplate {
       source: minijinja::Error,
-      path: PathBuf,
+      path: Utf8PathBuf,
    },
 
    #[error("could not load template for {path}: {source}")]
    MissingTemplate {
       source: minijinja::Error,
-      path: PathBuf,
+      path: Utf8PathBuf,
    },
 
    #[error(transparent)]
@@ -49,14 +47,15 @@ pub enum Error {
 pub fn load<I, F>(templates: I, trim_root: F) -> Result<Environment<'static>, Error>
 where
    I: IntoIterator,
-   I::Item: AsRef<Path>,
-   for<'a> F: Fn(&'a Path) -> Result<&'a Path, Box<dyn std::error::Error + Send + Sync>>,
+   I::Item: AsRef<Utf8Path>,
+   for<'a> F:
+      Fn(&'a Utf8Path) -> Result<&'a Utf8Path, Box<dyn std::error::Error + Send + Sync>>,
 {
    let mut env = Environment::new();
    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
    for path in templates {
       let path = path.as_ref();
-      let name = trim_root(path)?.to_string_lossy().to_string();
+      let name = trim_root(path)?.to_string();
       let content = std::fs::read_to_string(path)?;
       trace!("Adding template at {name}");
       env.add_template_owned(name, content).map_err(|source| {
@@ -91,9 +90,7 @@ pub fn render(
 
    debug!(
       "Rendering page '{}' ({:?}) with layout '{}'",
-      page.data.title,
-      page.source.path.display(),
-      page.data.layout
+      page.data.title, page.source.path, page.data.layout
    );
 
    let tpl =

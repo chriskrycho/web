@@ -15,6 +15,7 @@ axum = { version = "0.7.4", default-features = true, features = [
     "http2",
     "ws",
 ] }
+camino = { version = "1.1.10", features = ["serde1"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { workspace = true }
 clap_complete = { workspace = true }

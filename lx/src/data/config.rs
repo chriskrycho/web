@@ -1,5 +1,4 @@
-use std::path::{Path, PathBuf};
-
+use camino::{Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::image::Image;
@@ -12,14 +11,14 @@ pub struct Config {
    pub subtitle: Option<String>,
    pub description: String,
    pub author: serial::Author,
-   pub output: PathBuf,
+   pub output: Utf8PathBuf,
    pub image: crate::data::image::Image,
    #[serde(default)]
    pub nav: Vec<NavItem>,
 }
 
 impl Config {
-   pub fn from_file(path: &Path) -> Result<Config, Error> {
+   pub fn from_file(path: &Utf8Path) -> Result<Config, Error> {
       let serial_cfg = serial::Config::from_file(path)?;
       Ok(Config {
          url: serial_cfg.url,
@@ -45,12 +44,9 @@ pub struct Error {
 pub use serial::NavItem;
 
 pub mod serial {
-   use std::{
-      collections::HashMap,
-      fmt::Display,
-      path::{Path, PathBuf},
-   };
+   use std::{collections::HashMap, fmt::Display};
 
+   use camino::{Utf8Path, Utf8PathBuf};
    use normalize_path::NormalizePath as _;
    use serde::{Deserialize, Serialize};
    use thiserror::Error;
@@ -65,14 +61,14 @@ pub mod serial {
       pub subtitle: Option<String>,
       pub description: String,
       pub author: Author,
-      pub output: PathBuf,
+      pub output: Utf8PathBuf,
       pub image: crate::data::image::serial::Image,
       #[serde(default)]
       pub nav: Vec<NavItem>,
    }
 
    impl Config {
-      pub fn from_file(path: &Path) -> Result<Config, Error> {
+      pub fn from_file(path: &Utf8Path) -> Result<Config, Error> {
          let data = std::fs::read_to_string(path).map_err(|source| Error::BadFile {
             path: path.to_owned(),
             source,
@@ -86,14 +82,11 @@ pub mod serial {
 
          config.output = path
             .parent()
-            .unwrap_or_else(|| {
-               panic!(
-                  "config file at {path} will have a parent dir",
-                  path = path.display()
-               )
-            })
+            .unwrap_or_else(|| panic!("config file at {path} will have a parent dir",))
             .join(&config.output)
-            .normalize();
+            .as_std_path()
+            .normalize()
+            .try_into()?;
 
          Ok(config)
       }
@@ -129,14 +122,20 @@ pub mod serial {
    pub enum Error {
       #[error("could not read file '{path}'")]
       BadFile {
-         path: PathBuf,
+         path: Utf8PathBuf,
          source: std::io::Error,
       },
 
       #[error("could not parse {path} as YAML")]
       YamlParseError {
-         path: PathBuf,
+         path: Utf8PathBuf,
          source: serde_yaml::Error,
+      },
+
+      #[error(transparent)]
+      NonUtf8Path {
+         #[from]
+         source: camino::FromPathBufError,
       },
    }
 }

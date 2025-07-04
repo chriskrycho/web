@@ -16,6 +16,7 @@ use axum::{
    response::Response,
    routing::{self},
 };
+use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
    SinkExt, StreamExt,
    future::{self, Either},
@@ -49,7 +50,7 @@ use crate::{
 
 /// Serve the site, blocking on the result (i.e. blocking forever until it is
 /// killed by some kind of signal or failure).
-pub fn serve(site_dir: &Path, port: Option<u16>) -> Result<(), Error> {
+pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Error> {
    // Instead of making `main` be `async` (regardless of whether it needs it, as
    // many operations do *not*), make *this* function handle it. An alternative
    // would be to do this same basic wrapping in `main` but only for this.
@@ -166,7 +167,7 @@ async fn rebuild(
 }
 
 async fn serve_in(
-   path: PathBuf,
+   path: Utf8PathBuf,
    port: Option<u16>,
    state: broadcast::Sender<Rebuild>,
 ) -> Result<(), Error> {
@@ -190,8 +191,7 @@ async fn serve_in(
    let local_ip = local_ip_address::local_ip().expect("can always get my own IP address");
 
    info!(
-      "→ Serving\n\tlocal: http://127.0.0.1:{port}\n\tnetwork: http://{local_ip}:{port}\n\tfrom {}",
-      path.display()
+      "→ Serving\n\tlocal: http://127.0.0.1:{port}\n\tnetwork: http://{local_ip}:{port}\n\tfrom {path}",
    );
 
    axum::serve(listener, router)
@@ -397,7 +397,9 @@ async fn watch_in(input: Canonicalized, change_tx: Sender<Change>) -> Result<(),
    Ok(())
 }
 
-fn is_public(root: &Path, desc: &Path) -> bool {
+fn is_public<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, desc: P2) -> bool {
+   let root = root.as_ref();
+   let desc = desc.as_ref();
    let out = desc
       .strip_prefix(root)
       .expect("Never call this on paths which are not children of the root")

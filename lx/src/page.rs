@@ -6,6 +6,7 @@ use std::{
    path::{Path, PathBuf},
 };
 
+use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use lx_md::{self, Markdown, RenderError, ToRender};
 use serde::{Deserialize, Serialize};
@@ -76,7 +77,7 @@ pub struct Rendered {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Source {
    /// Original source location for the file.
-   pub path: PathBuf,
+   pub path: Utf8PathBuf,
    /// Original contents of the file.
    pub contents: String,
 }
@@ -116,7 +117,7 @@ impl<'s> Page<'s> {
    pub fn from_rendered(
       rendered: Rendered,
       source: &'s Source,
-      in_dir: &Path,
+      in_dir: &Utf8Path,
    ) -> Result<Page<'s>, Error> {
       // TODO: This is the right idea for where I want to take this, but ultimately I
       // don't want to do it based on the source path (or if I do, *only* initially as
@@ -170,18 +171,18 @@ pub enum Error {
    #[error("Invalid combination of root '{root}' and slug '{slug}'")]
    BadSlugRoot {
       source: std::path::StripPrefixError,
-      root: PathBuf,
-      slug: PathBuf,
+      root: Utf8PathBuf,
+      slug: Utf8PathBuf,
    },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RootedPath(PathBuf);
+pub struct RootedPath(Utf8PathBuf);
 
 impl RootedPath {
-   pub fn new(slug: &Slug, root_dir: &Path) -> Result<RootedPath, Error> {
+   pub fn new(slug: &Slug, root_dir: &Utf8Path) -> Result<RootedPath, Error> {
       match slug {
-         Slug::Permalink(str) => Ok(RootedPath(PathBuf::from(str))),
+         Slug::Permalink(str) => Ok(RootedPath(Utf8PathBuf::from(str))),
          Slug::FromPath(path_buf) => path_buf
             .strip_prefix(root_dir)
             .map(|path| RootedPath(path.to_owned()))
@@ -195,14 +196,12 @@ impl RootedPath {
 
    /// Given a config, generate the (canonicalized) URL for the rooted path
    pub fn url(&self, config: &Config) -> String {
-      String::from(config.url.trim_end_matches('/'))
-         + "/"
-         + self.0.to_str().expect("All paths are UTF-8")
+      String::from(config.url.trim_end_matches('/')) + "/" + self.0.as_str()
    }
 }
 
-impl AsRef<Path> for RootedPath {
-   fn as_ref(&self) -> &Path {
+impl AsRef<Utf8Path> for RootedPath {
+   fn as_ref(&self) -> &Utf8Path {
       &self.0
    }
 }

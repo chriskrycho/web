@@ -2,9 +2,9 @@
 
 use std::fs;
 use std::io::{BufReader, Read, Write};
-use std::path::PathBuf;
 
 use anyhow::anyhow;
+use camino::Utf8PathBuf;
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use clap_complete::{generate_to, shells::Fish};
 use log::info;
@@ -12,7 +12,7 @@ use simplelog::{
    ColorChoice, Config, ConfigBuilder, LevelFilter, TermLogger, TerminalMode,
 };
 use syntect::highlighting::ThemeSet;
-use syntect::html::{css_for_theme_with_class_style, ClassStyle};
+use syntect::html::{ClassStyle, css_for_theme_with_class_style};
 use thiserror::Error;
 
 mod archive;
@@ -41,14 +41,14 @@ fn main() -> Result<(), anyhow::Error> {
    let cwd = std::env::current_dir().expect(
       "Something is suuuuper borked: I cannot even get the current working directory!",
    );
+   let cwd = Utf8PathBuf::try_from(cwd)?;
 
    match cli.command {
       Command::Publish { site_directory } => {
          let directory = site_directory
             .unwrap_or_else(|| {
                info!(
-                  "No directory passed, using current working directory ({}) instead",
-                  cwd.display()
+                  "No directory passed, using current working directory ({cwd}) instead",
                );
                cwd
             })
@@ -62,19 +62,16 @@ fn main() -> Result<(), anyhow::Error> {
          site_directory,
          port,
       } => {
-         let directory = site_directory.unwrap_or_else(|| {
-            info!(
-               "No directory passed, using current working directory ({}) instead",
-               cwd.display()
-            );
-            cwd
-         });
+         let directory =
+            site_directory.unwrap_or_else(|| {
+               info!(
+                  "No directory passed, using current working directory ({cwd}) instead",
+               );
+               cwd
+            });
 
          if !directory.exists() {
-            return Err(anyhow!(
-               "Source directory '{}' does not exist",
-               directory.display()
-            ));
+            return Err(anyhow!("Source directory '{directory}' does not exist",));
          }
 
          serve(&directory, port)?;
@@ -238,18 +235,18 @@ enum Error {
 
    #[error("could not open file at '{path}' {reason}")]
    CouldNotOpenFile {
-      path: PathBuf,
+      path: Utf8PathBuf,
       reason: FileOpenReason,
       source: std::io::Error,
    },
 
    #[error("invalid file path with no parent directory: '{path}'")]
-   InvalidDirectory { path: PathBuf },
+   InvalidDirectory { path: Utf8PathBuf },
 
    #[error("could not create directory '{dir}' to write file '{path}")]
    CreateDirectory {
-      dir: PathBuf,
-      path: PathBuf,
+      dir: Utf8PathBuf,
+      path: Utf8PathBuf,
       source: std::io::Error,
    },
 
@@ -257,7 +254,7 @@ enum Error {
    CheckFileExists { source: std::io::Error },
 
    #[error("the file '{0}' already exists")]
-   FileExists(PathBuf),
+   FileExists(Utf8PathBuf),
 
    #[error(transparent)]
    Logger(#[from] log::SetLoggerError),
@@ -294,13 +291,13 @@ enum Command {
    /// Go live
    Publish {
       /// The root of the site (if different from the current directory).
-      site_directory: Option<PathBuf>,
+      site_directory: Option<Utf8PathBuf>,
    },
 
    /// Build and serve the site for development
    #[clap(aliases = ["d", "dev", "s", "serve"])]
    Develop {
-      site_directory: Option<PathBuf>,
+      site_directory: Option<Utf8PathBuf>,
 
       /// Port to serve the site on. Defaults to `24747`, i.e, "Chris"
       #[arg(short, long)]
@@ -358,7 +355,7 @@ enum Theme {
 
       /// Where to emit the theme CSS. If absent, will use `stdout`.
       #[arg(long = "to")]
-      path: Option<PathBuf>,
+      path: Option<Utf8PathBuf>,
 
       /// Overwrite any existing file at the path specified.
       #[arg(long, requires = "path")]
@@ -370,11 +367,11 @@ enum Theme {
 struct Paths {
    /// Path to the file to convert. Will use `stdin` if not supplied.
    #[arg(short, long)]
-   input: Option<PathBuf>,
+   input: Option<Utf8PathBuf>,
 
    /// Where to print the output. Will use `stdout` if not supplied.
    #[arg(short, long)]
-   output: Option<PathBuf>,
+   output: Option<Utf8PathBuf>,
 
    /// If the supplied `output` file is present, overwrite it.
    #[arg(long, default_missing_value("true"), num_args(0..=1), require_equals(true))]
@@ -384,10 +381,10 @@ struct Paths {
 #[derive(Args, Debug, PartialEq, Clone)]
 struct StylePaths {
    #[arg()]
-   input: PathBuf,
+   input: Utf8PathBuf,
 
    #[arg()]
-   output: PathBuf,
+   output: Utf8PathBuf,
 
    /// If the supplied `output` file is present, overwrite it.
    #[arg(long, default_missing_value("true"), num_args(0..=1), require_equals(true))]
@@ -395,14 +392,17 @@ struct StylePaths {
 }
 
 enum Dest {
-   File { path: PathBuf, buf: Box<dyn Write> },
+   File {
+      path: Utf8PathBuf,
+      buf: Box<dyn Write>,
+   },
    Stdout(Box<dyn Write>),
 }
 
 impl std::fmt::Display for Dest {
    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       match self {
-         Dest::File { path, .. } => write!(f, "{}", path.display()),
+         Dest::File { path, .. } => write!(f, "{path}"),
          Dest::Stdout(_) => f.write_str("stdin"),
       }
    }
@@ -418,7 +418,7 @@ impl Dest {
 }
 
 pub(crate) enum DestCfg {
-   Path { buf: PathBuf, force: bool },
+   Path { buf: Utf8PathBuf, force: bool },
    Stdout,
 }
 
@@ -435,7 +435,7 @@ fn parse_paths(paths: Paths) -> Result<ParsedPaths, anyhow::Error> {
    Ok((input, dest))
 }
 
-pub(crate) fn input_buffer(path: Option<&PathBuf>) -> Result<Box<dyn Read>, Error> {
+pub(crate) fn input_buffer(path: Option<&Utf8PathBuf>) -> Result<Box<dyn Read>, Error> {
    let buf = match path {
       Some(path) => {
          let file = fs::File::open(path).map_err(|source| Error::CouldNotOpenFile {

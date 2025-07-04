@@ -1,17 +1,12 @@
 pub mod cascade;
 pub mod serial;
 
-use std::collections::HashMap;
-use std::fmt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::path::StripPrefixError;
+use std::{collections::HashMap, fmt, path::StripPrefixError};
 
-use chrono::DateTime;
-use chrono::FixedOffset;
+use camino::{Utf8Path, Utf8PathBuf};
+use chrono::{DateTime, FixedOffset};
 use lx_md::Markdown;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
 
@@ -72,7 +67,7 @@ impl Metadata {
       });
 
       let dir = source.path.parent().ok_or_else(|| Error::BadPermalink {
-         reason: format!("Missing parent for file at {}", source.path.display()),
+         reason: format!("Missing parent for file at {}", source.path),
          source: None,
       })?;
 
@@ -186,7 +181,7 @@ pub struct Update {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Slug {
    Permalink(String),
-   FromPath(PathBuf),
+   FromPath(Utf8PathBuf),
 }
 
 impl Slug {
@@ -198,24 +193,22 @@ impl Slug {
    /// # Errors
    ///
    /// This function will return an error if .
-   fn new(permalink: Option<&str>, source: &Path) -> Result<Slug, Error> {
+   fn new(permalink: Option<&str>, source: &Utf8Path) -> Result<Slug, Error> {
       match permalink {
          Some(s) => Ok(Slug::Permalink(s.to_owned())),
 
          None => {
             let start = source.parent().ok_or_else(|| Error::BadPermalink {
-               reason: format!("missing parent on '{}'?!?", source.display()),
+               reason: format!("missing parent on '{source}'?!?"),
                source: None,
             })?;
 
             let end = source
                .file_stem()
                .ok_or_else(|| Error::BadPermalink {
-                  reason: format!("missing file stem on '{}'?!?", source.display()),
+                  reason: format!("missing file stem on '{source}'?!?"),
                   source: None,
-               })?
-               .to_str()
-               .ok_or_else(|| Error::bad_permalink(source, None))
+               })
                .map(slugify)?;
 
             Ok(Slug::FromPath(start.join(end)))
@@ -487,9 +480,9 @@ pub enum Error {
 }
 
 impl Error {
-   fn bad_permalink(p: &Path, source: Option<StripPrefixError>) -> Error {
+   fn bad_permalink(p: &Utf8Path, source: Option<StripPrefixError>) -> Error {
       Error::BadPermalink {
-         reason: format!("could not get `str` for '{}'", p.display()),
+         reason: format!("could not get `str` for '{p}'"),
          source,
       }
    }
@@ -581,7 +574,7 @@ mod tests {
    #[test]
    fn slug_from_explicit_permalink() {
       let permalink = "Hello There";
-      let source = PathBuf::default();
+      let source = Utf8PathBuf::default();
 
       assert_eq!(
          Slug::new(Some(permalink), &source).unwrap(),
@@ -592,32 +585,32 @@ mod tests {
 
    #[test]
    fn slug_from_simple_relative_path_with_simple_title() {
-      let source = PathBuf::from("a/b/c/q.rs");
-      let expected = PathBuf::from("a/b/c/q");
+      let source = Utf8PathBuf::from("a/b/c/q.rs");
+      let expected = Utf8PathBuf::from("a/b/c/q");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
 
    #[test]
    fn slug_from_simple_relative_path_with_complicated_title() {
-      let source = PathBuf::from("a/b/c/Q R S.rs");
-      let expected = PathBuf::from("a/b/c/q-r-s");
+      let source = Utf8PathBuf::from("a/b/c/Q R S.rs");
+      let expected = Utf8PathBuf::from("a/b/c/q-r-s");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
 
    #[test]
    fn slug_from_complex_relative_path_with_simple_title() {
-      let source = PathBuf::from("a/B C/d/q.rs");
-      let expected = PathBuf::from("a/B C/d/q");
+      let source = Utf8PathBuf::from("a/B C/d/q.rs");
+      let expected = Utf8PathBuf::from("a/B C/d/q");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
 
    #[test]
    fn slug_from_complex_relative_path_with_complex_title() {
-      let source = PathBuf::from("a/B C/d/Q R S.rs");
-      let expected = PathBuf::from("a/B C/d/q-r-s");
+      let source = Utf8PathBuf::from("a/B C/d/Q R S.rs");
+      let expected = Utf8PathBuf::from("a/B C/d/q-r-s");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }

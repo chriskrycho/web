@@ -1,16 +1,15 @@
-use std::path::Path;
-
+use camino::Utf8Path;
 use lightningcss::{
    bundler::{Bundler, FileProvider},
    printer::PrinterOptions,
    stylesheet::{MinifyOptions, ParserOptions},
 };
 
-pub fn convert(root: &Path, mode: Mode) -> Result<String, Error> {
+pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
    let fs = FileProvider::new();
    let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
    let mut stylesheet = bundler
-      .bundle(root)
+      .bundle(root.as_std_path())
       .map_err(|e| Error::Bundle(format!("{e:?}")))?;
 
    stylesheet

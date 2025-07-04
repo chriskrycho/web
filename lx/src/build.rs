@@ -1,12 +1,9 @@
-use std::{
-   error, fmt, fs, io,
-   path::{Path, PathBuf},
-};
+use std::{error, fmt, fs, io};
 
+use camino::{Utf8Path, Utf8PathBuf};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
-use rayon::iter::Either;
-use rayon::prelude::*;
+use rayon::{iter::Either, prelude::*};
 use thiserror::Error;
 
 use lx_md::Markdown;
@@ -33,8 +30,8 @@ pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
    let config_path = source_dir.as_ref().join("config.lx.yaml");
-   debug!("source path: {}", source_dir.as_ref().display());
-   debug!("config path: {}", config_path.display());
+   debug!("source path: {source_dir}");
+   debug!("config path: {config_path}");
    let config = Config::from_file(&config_path)?;
    Ok(config)
 }
@@ -46,7 +43,7 @@ pub fn build(
    md: &Markdown,
 ) -> Result<(), Error> {
    trace!("Building in {directory}");
-   trace!("Removing output directory {}", config.output.display());
+   trace!("Removing output directory {}", config.output);
 
    if let Err(io_err) = fs::remove_dir_all(&config.output) {
       if io_err.kind() != io::ErrorKind::NotFound {
@@ -200,10 +197,10 @@ pub fn build(
 
       let path = config.output.join(relative_path);
 
-      trace!("writing page {} to {}", page.data.title, path.display());
+      trace!("writing page {} to {}", page.data.title, path);
       let containing_dir = path
          .parent()
-         .unwrap_or_else(|| panic!("{} should have a containing dir!", path.display()));
+         .unwrap_or_else(|| panic!("{} should have a containing dir!", path));
 
       fs::create_dir_all(containing_dir).map_err(|e| Error::CreateOutputDirectory {
          path: containing_dir.to_owned(),
@@ -224,13 +221,10 @@ pub fn build(
          !path
             .file_name()
             .expect("all CSS files have file names")
-            .to_str()
-            // TODO: switch to the crate that makes this trivial
-            .expect("I don’t bother with non-UTF-8 file names")
             .starts_with("_")
       })
    {
-      debug!("building CSS for {}", css_file.display());
+      debug!("building CSS for {css_file}");
       // TODO: pass in build mode. Maybe also move it to top level?
       let converted = style::convert(&css_file, style::Mode::Dev)?;
       let relative_path =
@@ -248,7 +242,7 @@ pub fn build(
    Ok(())
 }
 
-fn copy(from: &Path, to: &Path) -> Result<(), Error> {
+fn copy(from: &Utf8Path, to: &Utf8Path) -> Result<(), Error> {
    let output_dir = to.parent().expect("must have a real parent");
    fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
       path: output_dir.to_owned(),
@@ -262,7 +256,7 @@ fn copy(from: &Path, to: &Path) -> Result<(), Error> {
    Ok(())
 }
 
-fn emit(path: &Path, content: impl AsRef<[u8]>) -> Result<(), Error> {
+fn emit(path: &Utf8Path, content: impl AsRef<[u8]>) -> Result<(), Error> {
    let output_dir = path.parent().expect("must have a real parent");
    fs::create_dir_all(output_dir).map_err(|source| Error::CreateOutputDirectory {
       path: output_dir.to_owned(),
@@ -278,7 +272,7 @@ fn emit(path: &Path, content: impl AsRef<[u8]>) -> Result<(), Error> {
 fn load_sources<S>(source_files: S) -> Result<Vec<Source>, Error>
 where
    S: IntoIterator,
-   S::Item: AsRef<Path>,
+   S::Item: AsRef<Utf8Path>,
 {
    let mut sources = Vec::new();
    let mut errors = Vec::new();
@@ -336,17 +330,23 @@ pub enum Error {
    Page(PageError),
 
    #[error("could not create output directory '{path}'")]
-   CreateOutputDirectory { path: PathBuf, source: io::Error },
+   CreateOutputDirectory {
+      path: Utf8PathBuf,
+      source: io::Error,
+   },
 
    #[error("could not copy from {from} to {to}")]
    CopyFile {
-      from: PathBuf,
-      to: PathBuf,
+      from: Utf8PathBuf,
+      to: Utf8PathBuf,
       source: io::Error,
    },
 
    #[error("could not write to {path}")]
-   WriteFile { path: PathBuf, source: io::Error },
+   WriteFile {
+      path: Utf8PathBuf,
+      source: io::Error,
+   },
 
    #[error("bad glob pattern: '{pattern}'")]
    GlobPattern {
@@ -358,7 +358,10 @@ pub enum Error {
    Glob { source: glob::GlobError },
 
    #[error("could not strip prefix '{prefix}' from path '{path}'")]
-   StripPrefix { prefix: PathBuf, path: PathBuf },
+   StripPrefix {
+      prefix: Utf8PathBuf,
+      path: Utf8PathBuf,
+   },
 
    #[error("error compiling CSS")]
    Styles {
@@ -367,10 +370,19 @@ pub enum Error {
    },
 
    #[error("invalid template path {path}")]
-   TemplatePath { path: PathBuf },
+   TemplatePath { path: Utf8PathBuf },
 
    #[error("could not delete directory '{path}'")]
-   RemoveDir { path: PathBuf, source: io::Error },
+   RemoveDir {
+      path: Utf8PathBuf,
+      source: io::Error,
+   },
+
+   #[error("Could not convert path '{}' to unicode: {source}", path.display())]
+   NonUtf8Path {
+      source: camino::FromPathBufError,
+      path: std::path::PathBuf,
+   },
 }
 
 impl Error {
@@ -384,14 +396,14 @@ impl Error {
       })
    }
 
-   fn preparing_page(errors: Vec<(PathBuf, page::Error)>) -> Error {
+   fn preparing_page(errors: Vec<(Utf8PathBuf, page::Error)>) -> Error {
       Error::Page(PageError {
          errors,
          kind: PageErrorKind::Prepare,
       })
    }
 
-   fn rendering_page(errors: Vec<(PathBuf, page::Error)>) -> Error {
+   fn rendering_page(errors: Vec<(Utf8PathBuf, page::Error)>) -> Error {
       Error::Page(PageError {
          errors,
          kind: PageErrorKind::Render,
@@ -407,7 +419,7 @@ enum PageErrorKind {
 
 #[derive(Error, Debug)]
 pub struct PageError {
-   errors: Vec<(PathBuf, page::Error)>,
+   errors: Vec<(Utf8PathBuf, page::Error)>,
    kind: PageErrorKind,
 }
 
@@ -416,13 +428,13 @@ impl fmt::Display for PageError {
       let count = self.errors.len();
       match self.kind {
          PageErrorKind::Prepare => {
-            writeln!(f, "could not prepare {} pages for rendering", count)?
+            writeln!(f, "could not prepare {count} pages for rendering")?
          }
-         PageErrorKind::Render => writeln!(f, "could not render {} pages", count)?,
+         PageErrorKind::Render => writeln!(f, "could not render {count} pages")?,
       };
 
       for (path, error) in &self.errors {
-         writeln!(f, "{}:\n\t{error}", path.display())?;
+         writeln!(f, "{path}:\n\t{error}")?;
          write_to_fmt(f, error)?;
       }
 
@@ -431,14 +443,14 @@ impl fmt::Display for PageError {
 }
 
 #[derive(Error, Debug)]
-pub struct RewriteErrors(Vec<(PathBuf, minijinja::Error)>);
+pub struct RewriteErrors(Vec<(Utf8PathBuf, minijinja::Error)>);
 
 impl fmt::Display for RewriteErrors {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       let errors = &self.0;
       writeln!(f, "could not rewrite {} pages", errors.len())?;
       for (path, error) in errors {
-         writeln!(f, "{}:\n\t{error}", path.display())?;
+         writeln!(f, "{path}:\n\t{error}")?;
          write_to_fmt(f, error)?;
       }
 
@@ -450,28 +462,25 @@ impl fmt::Display for RewriteErrors {
 #[error("Could not load file {path}")]
 pub struct ContentError {
    source: io::Error,
-   path: PathBuf,
+   path: Utf8PathBuf,
 }
 
 lazy_static! {
-   static ref UI_DIR: PathBuf = PathBuf::from("_ui");
+   static ref UI_DIR: Utf8PathBuf = Utf8PathBuf::from("_ui");
 }
 
 struct SiteFiles {
-   config: PathBuf,
-   content: Vec<PathBuf>,
-   data: Vec<PathBuf>,
-   templates: Vec<PathBuf>,
-   static_files: Vec<PathBuf>,
-   styles: Vec<PathBuf>,
+   config: Utf8PathBuf,
+   content: Vec<Utf8PathBuf>,
+   data: Vec<Utf8PathBuf>,
+   templates: Vec<Utf8PathBuf>,
+   static_files: Vec<Utf8PathBuf>,
+   styles: Vec<Utf8PathBuf>,
 }
 
 impl SiteFiles {
-   fn in_dir(in_dir: &Path) -> Result<SiteFiles, Error> {
-      let root = in_dir.display();
-
+   fn in_dir(in_dir: &Utf8Path) -> Result<SiteFiles, Error> {
       let content_dir = in_dir.join("content");
-      let content_dir = content_dir.display();
       trace!("content_dir: {content_dir}");
 
       let data = resolved_paths_for(&format!("{content_dir}/**/_data.lx.yaml"))?;
@@ -484,9 +493,9 @@ impl SiteFiles {
          config: in_dir.join("config.lx.yaml"),
          content,
          data,
-         templates: resolved_paths_for(&format!("{root}/{}/*.jinja", UI_DIR.display()))?,
-         static_files: resolved_paths_for(&format!("{root}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{root}/_styles/**/*.css"))?,
+         templates: resolved_paths_for(&format!("{in_dir}/{}/*.jinja", *UI_DIR))?,
+         static_files: resolved_paths_for(&format!("{in_dir}/_static/**/*"))?,
+         styles: resolved_paths_for(&format!("{in_dir}/_styles/**/*.css"))?,
       };
 
       Ok(site_files)
@@ -498,14 +507,14 @@ impl fmt::Display for SiteFiles {
       let sep = String::from("\n      ");
       let empty = String::from(" (none)");
 
-      let display = |paths: &[PathBuf]| {
+      let display = |paths: &[Utf8PathBuf]| {
          if paths.is_empty() {
             return empty.clone();
          }
 
          let path_strings = paths
             .iter()
-            .map(|path| path.display().to_string())
+            .map(|path| path.to_string())
             .collect::<Vec<_>>()
             .join(&sep);
 
@@ -515,7 +524,7 @@ impl fmt::Display for SiteFiles {
       // Yes, I could do these alignments with format strings; maybe at some
       // point I will switch to that.
       writeln!(f)?;
-      writeln!(f, "  config files:{}", self.config.display())?;
+      writeln!(f, "  config files:{}", self.config)?;
       writeln!(f, "  content files:{}", display(&self.content))?;
       writeln!(f, "  data files:{}", display(&self.data))?;
       writeln!(f, "  style files:{}", display(&self.styles))?;
@@ -525,19 +534,17 @@ impl fmt::Display for SiteFiles {
 }
 
 struct SharedFiles {
-   templates: Vec<PathBuf>,
-   static_files: Vec<PathBuf>,
-   styles: Vec<PathBuf>,
+   templates: Vec<Utf8PathBuf>,
+   static_files: Vec<Utf8PathBuf>,
+   styles: Vec<Utf8PathBuf>,
 }
 
 impl SharedFiles {
-   fn in_dir(dir: &Path) -> Result<SharedFiles, Error> {
-      let root = dir.display();
-
+   fn in_dir(dir: &Utf8Path) -> Result<SharedFiles, Error> {
       let site_files = SharedFiles {
-         templates: resolved_paths_for(&format!("{root}/{}/*.jinja", UI_DIR.display()))?,
-         static_files: resolved_paths_for(&format!("{root}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{root}/_styles/**/*.scss"))?,
+         templates: resolved_paths_for(&format!("{dir}/{}/*.jinja", *UI_DIR))?,
+         static_files: resolved_paths_for(&format!("{dir}/_static/**/*"))?,
+         styles: resolved_paths_for(&format!("{dir}/_styles/**/*.scss"))?,
       };
 
       Ok(site_files)
@@ -549,14 +556,14 @@ impl fmt::Display for SharedFiles {
       let sep = String::from("\n      ");
       let empty = String::from(" (none)");
 
-      let display = |paths: &[PathBuf]| {
+      let display = |paths: &[Utf8PathBuf]| {
          if paths.is_empty() {
             return empty.clone();
          }
 
          let path_strings = paths
             .iter()
-            .map(|path| path.display().to_string())
+            .map(|path| path.to_string())
             .collect::<Vec<_>>()
             .join(&sep);
 
@@ -572,17 +579,20 @@ impl fmt::Display for SharedFiles {
    }
 }
 
-fn resolved_paths_for(glob_src: &str) -> Result<Vec<PathBuf>, Error> {
+fn resolved_paths_for(glob_src: &str) -> Result<Vec<Utf8PathBuf>, Error> {
    glob::glob(glob_src)
       .map_err(|source| Error::GlobPattern {
          pattern: glob_src.to_string(),
          source,
       })?
       .try_fold(Vec::new(), |mut good, result| match result {
-         Ok(path) => {
-            good.push(path);
-            Ok(good)
-         }
+         Ok(path) => match Utf8PathBuf::try_from(path.clone()) {
+            Ok(utf8_path) => {
+               good.push(utf8_path);
+               Ok(good)
+            }
+            Err(source) => Err(Error::NonUtf8Path { source, path }),
+         },
          Err(source) => Err(Error::Glob { source }),
       })
       .map(|paths| paths.into_iter().filter(|path| path.is_file()).collect())
