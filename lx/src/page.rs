@@ -1,13 +1,6 @@
-use std::{
-   collections::HashMap,
-   fmt,
-   hash::Hash,
-   os::unix::prelude::OsStrExt,
-   path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
 
 use camino::{Utf8Path, Utf8PathBuf};
-use chrono::{DateTime, FixedOffset};
 use lx_md::{self, Markdown, RenderError, ToRender};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -234,25 +227,3 @@ impl From<PageAndConfig<'_, '_, '_>> for json_feed::FeedItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Collections(HashMap<Id, crate::collection::Id>);
-
-pub trait Updated {
-   fn updated(&self) -> DateTime<FixedOffset>;
-}
-
-impl Updated for [Page<'_>] {
-   fn updated(&self) -> chrono::DateTime<chrono::FixedOffset> {
-      self
-         .iter()
-         .map(|p| &p.data)
-         .map(|m| {
-            m.updated
-               .iter()
-               .map(|u| u.at)
-               .chain(m.date)
-               .max()
-               .expect("There should always be a 'latest' date for resolved metadata")
-         })
-         .max()
-         .expect("should always be a latest date!")
-   }
-}

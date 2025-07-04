@@ -480,13 +480,6 @@ pub enum Error {
 }
 
 impl Error {
-   fn bad_permalink(p: &Utf8Path, source: Option<StripPrefixError>) -> Error {
-      Error::BadPermalink {
-         reason: format!("could not get `str` for '{p}'"),
-         source,
-      }
-   }
-
    fn bad_field(source: FieldError) -> Error {
       Error::BadField { source }
    }

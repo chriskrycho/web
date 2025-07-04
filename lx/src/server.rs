@@ -242,7 +242,8 @@ async fn websocket(socket: WebSocket, rebuild_tx: broadcast::Sender<Rebuild>) {
                Rebuild::Failure { cause } => {
                   todo!(
                      "send message about errors to client.\
-                        Make it easy to notice and debug on either side!"
+                        Make it easy to notice and debug on either side!\
+                        cause: {cause}"
                   )
                }
             },
