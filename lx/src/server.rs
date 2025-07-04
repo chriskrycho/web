@@ -444,9 +444,6 @@ pub enum Error {
    #[error("Could not start the site server\n{source}")]
    ServeStart { source: io::Error },
 
-   #[error("Error while serving the site\n{source}")]
-   Serve { source: JoinError },
-
    #[error("Runtime error\n{source}")]
    Tokio {
       #[from]
