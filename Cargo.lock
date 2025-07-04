@@ -1284,6 +1284,7 @@ dependencies = [
  "log",
  "lx-md",
  "minijinja",
+ "nanohtml2text",
  "normalize-path",
  "notify",
  "notify-debouncer-full",
@@ -1416,6 +1417,12 @@ dependencies = [
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "nanohtml2text"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11ec1bc47d34ae756616f387c11fd0595f86f2cc7e6473bde9e3ded30cb902a1"
 
 [[package]]
 name = "neli"

@@ -34,6 +34,7 @@ local-ip-address = "0.6"
 log = { workspace = true }
 lx-md = { path = "./crates/markdown" }
 minijinja = { version = "2", features = ["loader", "macros"] }
+nanohtml2text = "0.2.1"
 normalize-path = "0.2"
 notify = { version = "8", default-features = false, features = [
     "macos_kqueue",
