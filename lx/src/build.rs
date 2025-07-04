@@ -22,9 +22,7 @@ use crate::{
 
 pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
    let config = config_for(&directory)?;
-   let md = Markdown::new(None);
-
-   build(&directory, &config, &md, Mode::Build)
+   build(&directory, &config, &Markdown::new(None), Mode::Build)
 }
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
@@ -206,7 +204,7 @@ pub fn build(
       trace!("writing page {} to {}", page.data.title, path);
       let containing_dir = path
          .parent()
-         .unwrap_or_else(|| panic!("{} should have a containing dir!", path));
+         .unwrap_or_else(|| panic!("{path} should have a containing dir!"));
 
       fs::create_dir_all(containing_dir).map_err(|e| Error::CreateOutputDirectory {
          path: containing_dir.to_owned(),

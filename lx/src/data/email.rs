@@ -44,18 +44,18 @@ impl FromStr for Email {
    fn from_str(s: &str) -> Result<Self, Self::Err> {
       EMAIL_RE
          .captures(s)
-         .ok_or(format!("could not parse {}", s))
+         .ok_or(format!("could not parse {s}"))
          .and_then(
             |captures| match (captures.name("local"), captures.name("host")) {
                (Some(..), Some(..)) => Ok(Email {
                   validated: s.to_string(),
                }),
-               (Some(..), None) => Err(format!("missing host name in {}", s)),
-               (None, Some(..)) => Err(format!("missing username in {}", s)),
-               _ => Err(format!("could not parse {}", s)),
+               (Some(..), None) => Err(format!("missing host name in {s}")),
+               (None, Some(..)) => Err(format!("missing username in {s}")),
+               _ => Err(format!("could not parse {s}")),
             },
          )
-         .map_err(|e| format!("email validation error: {}", e))
+         .map_err(|e| format!("email validation error: {e}"))
    }
 }
 

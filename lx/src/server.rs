@@ -8,18 +8,18 @@ use std::{
 };
 
 use axum::{
-   Router,
    extract::{
-      State, WebSocketUpgrade,
-      ws::{Message, WebSocket},
+      ws::{Message, WebSocket}, State,
+      WebSocketUpgrade,
    },
    response::Response,
    routing::{self},
+   Router,
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
-   SinkExt, StreamExt,
-   future::{self, Either},
+   future::{self, Either}, SinkExt,
+   StreamExt,
 };
 use log::{debug, error, info, trace, warn};
 use lx_md::Markdown;
@@ -31,8 +31,8 @@ use tokio::{
    runtime::Runtime,
    sync::{
       broadcast::{
-         self, Sender,
-         error::{RecvError, SendError},
+         self, error::{RecvError, SendError},
+         Sender,
       },
       mpsc,
    },
@@ -66,18 +66,16 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
    // 3. When the watcher signals a change, use that to trigger a new *build*, not a
    //    reload.
    // 4. When the build finishes, use *that* to trigger a reload.
-   let site_dir = Canonicalized::try_from(site_dir)
-      .map_err(|source| Box::new(Error::Canonicalize(source)))?;
+   let site_dir = Canonicalized::try_from(site_dir).map_err(Error::from)?;
    trace!("Building in {site_dir:?}");
 
    // TODO: watch this separately?
-   let config =
-      config_for(&site_dir).map_err(|source| Box::new(Error::Build { source }))?;
+   let config = config_for(&site_dir).map_err(Error::from)?;
    trace!("Computed config: {config:?}");
 
    // TODO: consider how to loop on rebuild and changes and *not serve* until there has
    // been a successful build.
-   let first_build = build::build(&site_dir, &config, &md);
+   let first_build = build::build(&site_dir, &config, &md, build::Mode::Serve);
    if let Err(e) = first_build {
       eprintln!("Initial build failed: {e:?}");
    }
@@ -102,11 +100,11 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
       }
       Ok(Err(reason)) => {
          trace!("block_on -> race_all exited with Ok(Err({reason:?})))");
-         Err(Box::new(reason))
+         Err(reason)?
       }
       Err(join_error) => {
          trace!("block_on -> race_all exited with Err({join_error:?})");
-         Err(Box::new(Error::Serve { source: join_error }))
+         Err(Error::from(join_error))?
       }
    }
 }
@@ -135,7 +133,9 @@ async fn rebuild(
             );
 
             let rebuild =
-               match build::build(&site_dir, &site_config, &md).map_err(Error::from) {
+               match build::build(&site_dir, &site_config, &md, build::Mode::Serve)
+                  .map_err(Error::from)
+               {
                   Ok(()) => {
                      info!("rebuild completed");
                      Rebuild::Success { paths }
@@ -282,13 +282,9 @@ fn handle(
    use Message::*;
    match message_result {
       Ok(message) => match message {
-         Text(content) => Err(Box::new(Error::WebSocket(
-            WebSocketError::UnexpectedString(content),
-         ))),
+         Text(content) => Err(Error::from(WebSocketError::UnexpectedString(content)))?,
 
-         Binary(content) => Err(Box::new(Error::WebSocket(
-            WebSocketError::UnexpectedBytes(content),
-         ))),
+         Binary(content) => Err(Error::from(WebSocketError::UnexpectedBytes(content)))?,
 
          Ping(bytes) => {
             debug!("Ping with bytes: {bytes:?}");
@@ -318,9 +314,7 @@ fn handle(
          }
       },
 
-      Err(source) => Err(Box::new(Error::WebSocket(WebSocketError::Receive {
-         source,
-      }))),
+      Err(source) => Err(Error::from(WebSocketError::Receive { source }))?,
    }
 }
 
@@ -481,7 +475,6 @@ pub enum Error {
    Rebuild(#[from] SendError<Rebuild>),
 }
 
-// TODO: consider moving to its own module.
 #[derive(Debug, thiserror::Error)]
 pub enum WebSocketError {
    #[error("Could not receive WebSocket message:\n{source}")]

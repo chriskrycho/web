@@ -12,7 +12,7 @@ use simplelog::{
    ColorChoice, Config, ConfigBuilder, LevelFilter, TermLogger, TerminalMode,
 };
 use syntect::highlighting::ThemeSet;
-use syntect::html::{ClassStyle, css_for_theme_with_class_style};
+use syntect::html::{css_for_theme_with_class_style, ClassStyle};
 use thiserror::Error;
 
 mod archive;
