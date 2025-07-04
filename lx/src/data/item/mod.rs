@@ -231,7 +231,7 @@ pub struct Qualifiers {
    pub context: Option<String>,
    pub discusses: Option<String>,
    pub disclosure: Option<String>,
-   pub retraction: Option<Retraction>,
+   pub retraction: Option<serial::Retraction>,
 }
 
 impl Qualifiers {
@@ -242,19 +242,6 @@ impl Qualifiers {
          || self.discusses.is_some()
          || self.disclosure.is_some()
          || self.retraction.is_some()
-   }
-}
-
-// TODO: may not need this at all; just use `serial::Retraction`?
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Retraction {
-   pub url: String,
-   pub title: String,
-}
-
-impl From<serial::Retraction> for Retraction {
-   fn from(serial::Retraction { url, title }: serial::Retraction) -> Self {
-      Retraction { url, title }
    }
 }
 
