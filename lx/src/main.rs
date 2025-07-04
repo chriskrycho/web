@@ -104,9 +104,9 @@ fn main() -> Result<(), anyhow::Error> {
          let css = style::convert(
             &paths.input,
             if minify {
-               style::Mode::Prod
+               style::OutputMode::Prod
             } else {
-               style::Mode::Dev
+               style::OutputMode::Dev
             },
          )?;
          fs::write(paths.output, css)?;

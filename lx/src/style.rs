@@ -5,7 +5,7 @@ use lightningcss::{
    stylesheet::{MinifyOptions, ParserOptions},
 };
 
-pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
+pub fn convert(root: &Utf8Path, mode: OutputMode) -> Result<String, Error> {
    let fs = FileProvider::new();
    let mut bundler = Bundler::new(&fs, None, ParserOptions::default());
    let mut stylesheet = bundler
@@ -18,8 +18,8 @@ pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
 
    let print_options = PrinterOptions {
       minify: match mode {
-         Mode::Dev => false,
-         Mode::Prod => true,
+         OutputMode::Dev => false,
+         OutputMode::Prod => true,
       },
       ..Default::default()
    };
@@ -31,7 +31,7 @@ pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
    Ok(css.code)
 }
 
-pub enum Mode {
+pub enum OutputMode {
    Dev,
    Prod,
 }

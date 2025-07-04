@@ -24,8 +24,7 @@ pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
    let config = config_for(&directory)?;
    let md = Markdown::new(None);
 
-   // TODO: further split this apart.
-   build(&directory, &config, &md)
+   build(&directory, &config, &md, Mode::Build)
 }
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
@@ -36,13 +35,20 @@ pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
    Ok(config)
 }
 
+pub enum Mode {
+   Build,
+   Serve,
+}
+
 // TODO: further split this apart.
 pub fn build(
    directory: &Canonicalized,
    config: &Config,
    md: &Markdown,
+   mode: Mode,
 ) -> Result<(), Error> {
    trace!("Building in {directory}");
+   // TODO: only do this if in `Mode::Build`.
    trace!("Removing output directory {}", config.output);
 
    if let Err(io_err) = fs::remove_dir_all(&config.output) {
@@ -226,7 +232,7 @@ pub fn build(
    {
       debug!("building CSS for {css_file}");
       // TODO: pass in build mode. Maybe also move it to top level?
-      let converted = style::convert(&css_file, style::Mode::Dev)?;
+      let converted = style::convert(&css_file, style::OutputMode::Dev)?;
       let relative_path =
          css_file
             .strip_prefix(input_dir.join("_styles"))
