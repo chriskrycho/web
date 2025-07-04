@@ -12,7 +12,7 @@ pub struct Config {
    pub description: String,
    pub author: serial::Author,
    pub output: Utf8PathBuf,
-   pub image: crate::data::image::Image,
+   pub image: Image,
    #[serde(default)]
    pub nav: Vec<NavItem>,
 }
@@ -75,7 +75,7 @@ pub mod serial {
          })?;
 
          let mut config: Config =
-            serde_yaml::from_str(&data).map_err(|source| Error::YamlParseError {
+            serde_yaml::from_str(&data).map_err(|source| Error::YamlParsing {
                path: path.to_owned(),
                source,
             })?;
@@ -127,7 +127,7 @@ pub mod serial {
       },
 
       #[error("could not parse {path} as YAML")]
-      YamlParseError {
+      YamlParsing {
          path: Utf8PathBuf,
          source: serde_yaml::Error,
       },

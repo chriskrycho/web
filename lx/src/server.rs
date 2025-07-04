@@ -8,18 +8,18 @@ use std::{
 };
 
 use axum::{
-   Router,
    extract::{
-      State, WebSocketUpgrade,
-      ws::{Message, WebSocket},
+      ws::{Message, WebSocket}, State,
+      WebSocketUpgrade,
    },
    response::Response,
    routing::{self},
+   Router,
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
-   SinkExt, StreamExt,
-   future::{self, Either},
+   future::{self, Either}, SinkExt,
+   StreamExt,
 };
 use log::{debug, error, info, trace, warn};
 use lx_md::Markdown;
@@ -31,8 +31,8 @@ use tokio::{
    runtime::Runtime,
    sync::{
       broadcast::{
-         self, Sender,
-         error::{RecvError, SendError},
+         self, error::{RecvError, SendError},
+         Sender,
       },
       mpsc,
    },
@@ -48,15 +48,15 @@ use crate::{
    data::config::Config,
 };
 
-/// Serve the site, blocking on the result (i.e. blocking forever until it is
+/// Serve the site, blocking on the result (i.e., blocking forever until it is
 /// killed by some kind of signal or failure).
-pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Error> {
+pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
    // Instead of making `main` be `async` (regardless of whether it needs it, as
    // many operations do *not*), make *this* function handle it. An alternative
    // would be to do this same basic wrapping in `main` but only for this.
    let rt = Runtime::new().map_err(|e| Error::Io { source: e })?;
 
-   // This does not presently change for any reason. In principle it *could*, e.g. if I
+   // This does not presently change for any reason. In principle, it *could*, e.g. if I
    // wanted to reload it when config changed to support reloading syntaxes. For now,
    // though, this is sufficient.
    let md = Markdown::new(None);
@@ -66,10 +66,13 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Error> {
    // 3. When the watcher signals a change, use that to trigger a new *build*, not a
    //    reload.
    // 4. When the build finishes, use *that* to trigger a reload.
-   let site_dir = site_dir.try_into()?;
+   let site_dir = Canonicalized::try_from(site_dir)
+      .map_err(|source| Box::new(Error::Canonicalize(source)))?;
    trace!("Building in {site_dir:?}");
 
-   let config = config_for(&site_dir)?; // TODO: watch this separately?
+   // TODO: watch this separately?
+   let config =
+      config_for(&site_dir).map_err(|source| Box::new(Error::Build { source }))?;
    trace!("Computed config: {config:?}");
 
    // TODO: consider how to loop on rebuild and changes and *not serve* until there has
@@ -99,11 +102,11 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Error> {
       }
       Ok(Err(reason)) => {
          trace!("block_on -> race_all exited with Ok(Err({reason:?})))");
-         Err(reason)
+         Err(Box::new(reason))
       }
       Err(join_error) => {
          trace!("block_on -> race_all exited with Err({join_error:?})");
-         Err(Error::Serve { source: join_error })
+         Err(Box::new(Error::Serve { source: join_error }))
       }
    }
 }
@@ -116,7 +119,7 @@ async fn rebuild(
    site_config: Config,
    md: Markdown,
    change: Sender<Change>,
-   rebuild_tx: broadcast::Sender<Rebuild>,
+   rebuild_tx: Sender<Rebuild>,
 ) -> Result<(), Error> {
    let mut change = change.subscribe();
    loop {
@@ -169,7 +172,7 @@ async fn rebuild(
 async fn serve_in(
    path: Utf8PathBuf,
    port: Option<u16>,
-   state: broadcast::Sender<Rebuild>,
+   state: Sender<Rebuild>,
 ) -> Result<(), Error> {
    // This could be extracted into its own function.
    let serve_dir = ServeDir::new(&path).append_index_html_on_directories(true);
@@ -201,7 +204,7 @@ async fn serve_in(
 
 async fn websocket_upgrade(
    extractor: WebSocketUpgrade,
-   State(state): State<broadcast::Sender<Rebuild>>,
+   State(state): State<Sender<Rebuild>>,
 ) -> Response {
    debug!("binding websocket upgrade");
    extractor.on_upgrade(|socket| {
@@ -210,7 +213,7 @@ async fn websocket_upgrade(
    })
 }
 
-async fn websocket(socket: WebSocket, rebuild_tx: broadcast::Sender<Rebuild>) {
+async fn websocket(socket: WebSocket, rebuild_tx: Sender<Rebuild>) {
    let (mut ws_tx, mut ws_rx) = socket.split();
 
    let mut rebuild_rx = rebuild_tx.subscribe();
@@ -248,7 +251,7 @@ async fn websocket(socket: WebSocket, rebuild_tx: broadcast::Sender<Rebuild>) {
                }
             },
             Err(_) => {
-               eprintln!("");
+               debug!("sender closed");
                break;
             }
          }
@@ -271,19 +274,21 @@ async fn websocket(socket: WebSocket, rebuild_tx: broadcast::Sender<Rebuild>) {
    (reload, close).race().await;
 }
 
-fn handle(message_result: Result<Message, axum::Error>) -> Result<WebSocketState, Error> {
+fn handle(
+   message_result: Result<Message, axum::Error>,
+) -> Result<WebSocketState, Box<Error>> {
    debug!("Received {message_result:?} from WebSocket.");
 
    use Message::*;
    match message_result {
       Ok(message) => match message {
-         Text(content) => {
-            Err(Error::WebSocket(WebSocketError::UnexpectedString(content)))
-         }
+         Text(content) => Err(Box::new(Error::WebSocket(
+            WebSocketError::UnexpectedString(content),
+         ))),
 
-         Binary(content) => {
-            Err(Error::WebSocket(WebSocketError::UnexpectedBytes(content)))
-         }
+         Binary(content) => Err(Box::new(Error::WebSocket(
+            WebSocketError::UnexpectedBytes(content),
+         ))),
 
          Ping(bytes) => {
             debug!("Ping with bytes: {bytes:?}");
@@ -313,7 +318,9 @@ fn handle(message_result: Result<Message, axum::Error>) -> Result<WebSocketState
          }
       },
 
-      Err(source) => Err(Error::WebSocket(WebSocketError::Receive { source })),
+      Err(source) => Err(Box::new(Error::WebSocket(WebSocketError::Receive {
+         source,
+      }))),
    }
 }
 

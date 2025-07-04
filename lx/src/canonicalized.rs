@@ -36,7 +36,7 @@ impl TryFrom<&Utf8Path> for Canonicalized {
    fn try_from(value: &Utf8Path) -> Result<Self, Self::Error> {
       value
          .canonicalize_utf8()
-         .map_err(|source| InvalidDir::new(&value, source))
+         .map_err(|source| InvalidDir::new(value, source))
          .map(|path| Canonicalized { path })
    }
 }

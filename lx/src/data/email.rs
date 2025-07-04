@@ -2,7 +2,7 @@ use std::{fmt, str::FromStr};
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, de};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 lazy_static! {
     /// An incredibly stupid email-"parsing" regex.
@@ -39,7 +39,7 @@ impl fmt::Display for Email {
    }
 }
 
-impl std::str::FromStr for Email {
+impl FromStr for Email {
    type Err = String;
    fn from_str(s: &str) -> Result<Self, Self::Err> {
       EMAIL_RE

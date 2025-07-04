@@ -46,12 +46,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 simplelog = { workspace = true }
-slug = "0.1"
+slug = "0.1" #
 syntect = { workspace = true }
 thiserror = { workspace = true }
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
 tower-http = { version = "0.5", features = ["fs", "default"] }
 uuid = { version = "1", features = ["serde", "v5"] }
 watchexec = "8"
-watchexec-signals = "5"

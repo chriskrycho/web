@@ -1,11 +1,13 @@
+use std::error;
+
 use log::error;
 use pulldown_cmark::{CodeBlockKind, CowStr, Tag, TagEnd};
 use syntect::html::{ClassStyle, ClassedHTMLGenerator};
 use syntect::parsing::SyntaxSet;
 use thiserror::Error;
 
-use super::FootnoteDefinitions;
 use super::first_pass;
+use super::FootnoteDefinitions;
 
 /// The second pass through the events is responsible for three tasks:
 ///
@@ -41,7 +43,7 @@ pub enum Error {
 
    #[error("Could not rewrite text")]
    Rewrite {
-      source: Box<dyn std::error::Error + Send + Sync>,
+      source: Box<dyn error::Error + Send + Sync>,
       original: String,
    },
 }
@@ -50,7 +52,7 @@ pub(super) fn second_pass<'e>(
    footnote_definitions: FootnoteDefinitions<'e>,
    syntax_set: &SyntaxSet,
    events: Vec<first_pass::Event<'e>>,
-   rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
+   rewrite: impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
 ) -> Result<impl Iterator<Item = pulldown_cmark::Event<'e>>, Error> {
    let mut state = State {
       footnote_definitions,
@@ -72,12 +74,12 @@ pub(super) fn second_pass<'e>(
 }
 
 impl<'e> State<'e, '_> {
-   /// Returns `Some(String)` when it could successfully emit an event but there was
+   /// Returns `Some(String)` when it could successfully emit an event, but there was
    /// something unexpected about it, e.g. a footnote with a missing definition.
    fn handle(
       &mut self,
       event: first_pass::Event<'e>,
-      rewrite: &impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
+      rewrite: &impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
    ) -> Result<Option<String>, Error> {
       use pulldown_cmark::Event::*;
 
@@ -180,7 +182,7 @@ fn footnote_backref_name(index: usize) -> String {
    format!("fnref{index}")
 }
 
-impl<'e> std::iter::IntoIterator for State<'e, '_> {
+impl<'e> IntoIterator for State<'e, '_> {
    type Item = pulldown_cmark::Event<'e>;
    type IntoIter = std::vec::IntoIter<pulldown_cmark::Event<'e>>;
 

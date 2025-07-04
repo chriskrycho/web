@@ -17,7 +17,7 @@ use std::fmt::Debug;
 
 use lazy_static::lazy_static;
 pub use pulldown_cmark::Options;
-use pulldown_cmark::{CowStr, Event, MetadataBlockKind, Parser, Tag, TagEnd, html};
+use pulldown_cmark::{html, CowStr, Event, MetadataBlockKind, Parser, Tag, TagEnd};
 use serde::Deserialize;
 use syntect::parsing::SyntaxSet;
 use thiserror::Error;
@@ -137,7 +137,7 @@ impl Markdown {
 pub fn prepare(src: &str) -> Result<Prepared<'_>, Error> {
    let parser = Parser::new_ext(src, *OPTIONS);
 
-   let mut state = first_pass::FirstPass::new();
+   let mut state = FirstPass::new();
 
    // TODO: rewrite all these `bad_prepare_state` calls into actual specific errors from
    // the enum above!

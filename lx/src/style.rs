@@ -16,10 +16,12 @@ pub fn convert(root: &Utf8Path, mode: Mode) -> Result<String, Error> {
       .minify(MinifyOptions::default())
       .map_err(|e| Error::Minify(format!("{e:?}")))?;
 
-   let mut print_options = PrinterOptions::default();
-   print_options.minify = match mode {
-      Mode::Dev => false,
-      Mode::Prod => true,
+   let print_options = PrinterOptions {
+      minify:match mode {
+         Mode::Dev => false,
+         Mode::Prod => true,
+      },
+      ..Default::default()
    };
 
    let css = stylesheet

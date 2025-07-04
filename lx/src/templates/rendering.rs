@@ -17,12 +17,27 @@ impl Object for NavItem {
 }
 
 impl Object for Qualifiers {
+   fn call_method(
+      self: &Arc<Self>,
+      _state: &minijinja::State<'_, '_>,
+      method: &str,
+      _args: &[minijinja::Value],
+   ) -> Result<minijinja::Value, minijinja::Error> {
+      match method {
+         "needs_to_render" => Ok(self.needs_to_render().into()),
+         _ => Err(minijinja::Error::new(
+            minijinja::ErrorKind::UnknownMethod,
+            method.to_string(),
+         )),
+      }
+   }
+
    fn render(self: &Arc<Self>, f: &mut fmt::Formatter<'_>) -> fmt::Result
    where
       Self: Sized + 'static,
    {
       if !self.needs_to_render() {
-         return fmt::Result::Ok(());
+         return Ok(());
       }
 
       const OPEN: &str = r#"<p class="qualifier">"#;
@@ -66,20 +81,5 @@ impl Object for Qualifiers {
          f,
          "{audience}{epistemic}{context}{discusses}{disclosure}{retraction}"
       )
-   }
-
-   fn call_method(
-      self: &Arc<Self>,
-      _state: &minijinja::State<'_, '_>,
-      method: &str,
-      _args: &[minijinja::Value],
-   ) -> Result<minijinja::Value, minijinja::Error> {
-      match method {
-         "needs_to_render" => Ok(self.needs_to_render().into()),
-         _ => Err(minijinja::Error::new(
-            minijinja::ErrorKind::UnknownMethod,
-            method.to_string(),
-         )),
-      }
    }
 }

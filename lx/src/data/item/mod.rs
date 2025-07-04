@@ -71,7 +71,7 @@ impl Metadata {
          source: None,
       })?;
 
-      let render = |s: String| Rendered::as_markdown(&s, md);
+      let render = |s: String| Rendered::markdown(&s, md);
 
       let work = MusicalWork::resolved(item.work, cascade.work(dir))?;
 
@@ -111,10 +111,7 @@ impl Metadata {
                      .map(|formatted| format!("{DISCUSSES} {formatted}"))
                },
                disclosure: from_item.disclosure.or(from_cascade.disclosure),
-               retraction: from_item
-                  .retraction
-                  .or(from_cascade.retraction)
-                  .map(Into::into),
+               retraction: from_item.retraction.or(from_cascade.retraction),
             }
          },
          updated: item.updated.into_iter().try_fold(
@@ -156,7 +153,7 @@ pub struct Rendered {
 }
 
 impl Rendered {
-   fn as_markdown(src: &str, md: &Markdown) -> Result<Rendered, Error> {
+   fn markdown(src: &str, md: &Markdown) -> Result<Rendered, Error> {
       md.render(src, |s| Ok(s.to_string()))
          .map(|(_, rendered)| Rendered {
             source: src.to_owned(),
@@ -431,7 +428,7 @@ pub struct Listen {
    stream: HashMap<String, String>,
 }
 
-impl std::convert::From<serial::Listen> for Listen {
+impl From<serial::Listen> for Listen {
    fn from(serial::Listen { buy, stream }: serial::Listen) -> Self {
       Listen { buy, stream }
    }
@@ -502,8 +499,8 @@ pub enum WorkError {
    Duration,
 }
 
-impl std::fmt::Display for WorkError {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for WorkError {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       match self {
          WorkError::Title => write!(f, "title"),
          WorkError::Instrumentation => write!(f, "instrumentation"),
@@ -520,8 +517,8 @@ pub enum WorkMissingFrom {
    Both,
 }
 
-impl std::fmt::Display for WorkMissingFrom {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for WorkMissingFrom {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       match self {
          WorkMissingFrom::Item => write!(f, "item (not present in cascade)"),
          WorkMissingFrom::Cascade => write!(f, "cascade (not present on item)"),
@@ -536,7 +533,7 @@ where
    S: fmt::Display,
 {
    // Might be a thing to think about cleaning up later to reduce allocations,
-   // but honestly I don’t think it will matter very often!
+   // but honestly, I don’t think it will matter very often!
    let strings = strings.into_iter().collect::<Vec<_>>();
    match strings.len() {
       0 => None,

@@ -87,10 +87,7 @@ fn write(src: &str, dest: &mut Box<dyn Write>) -> Result<(), Error> {
       .map_err(|source| Error::WriteBuffer { source })
 }
 
-fn yaml_to_html(
-   source: &serde_yaml::Value,
-   output: &mut Box<dyn Write>,
-) -> Result<(), Error> {
+fn yaml_to_html(source: &Value, output: &mut Box<dyn Write>) -> Result<(), Error> {
    match source {
       Value::Null => write("(null)", output),
       Value::Bool(bool) => write(&bool.to_string(), output),

@@ -11,10 +11,6 @@ documentation.workspace = true
 # keywords.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-clap = { workspace = true }
-clap_complete = { workspace = true }
-dirs = { workspace = true }
 log = { workspace = true }
 latex2mathml = "0.2"
 lazy_static = { workspace = true }
@@ -22,8 +18,6 @@ pulldown-cmark = { version = "0.13", default-features = false, features = [
     "simd",
     "html",
 ] }
-simplelog = { workspace = true }
 syntect = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
-serde_yaml = { workspace = true }
