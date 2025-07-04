@@ -45,7 +45,7 @@ pub fn build(
    md: &Markdown,
    mode: Mode,
 ) -> Result<(), Error> {
-   trace!("Building in {directory}");
+   debug!("Building in {directory}");
 
    clear_output_dir(config, mode)?;
 
@@ -83,19 +83,21 @@ pub fn build(
          if path.starts_with(&shared_ui_dir) {
             Ok(path.strip_prefix(&shared_ui_dir).unwrap())
          } else {
-            Err(Box::new(Error::TemplatePath {
+            Err(Error::TemplatePath {
                path: path.to_owned(),
-            }))
+            })?
          }
       } else {
-         Err(Box::new(Error::TemplatePath {
+         Err(Error::TemplatePath {
             path: path.to_owned(),
-         }))
+         })?
       }
    })?;
 
-   // TODO: actual error handling here, please.
-   fs::create_dir_all(&config.output).expect("Can create output dir");
+   fs::create_dir_all(&config.output).map_err(|source| Error::CreateDir {
+      path: config.output.clone(),
+      source,
+   })?;
 
    let sources = load_sources(&site_files.content)?;
 
@@ -107,7 +109,7 @@ pub fn build(
    let (errors, prepared_pages): (Vec<_>, Vec<_>) = sources
       .par_iter()
       // NOTE: this is where I will want to add handling for `<page>.lx.yaml` files; when
-      // I add support for that this will not be a filter but will do different things in
+      // I add support for that, this will not be a filter but will do different things in
       // the map call depending on what kind of file it is.
       .filter(|source| source.path.extension().is_some_and(|ext| ext == "md"))
       .map(|source| {
@@ -189,7 +191,6 @@ pub fn build(
    // TODO: this can and probably should use async?
    for page in pages {
       let relative_path = page.path.as_ref().join("index.html");
-
       let path = config.output.join(relative_path);
 
       trace!("writing page {} to {}", page.data.title, path);
@@ -219,8 +220,7 @@ pub fn build(
             .starts_with("_")
       })
    {
-      debug!("building CSS for {css_file}");
-      // TODO: pass in build mode. Maybe also move it to top level?
+      trace!("building CSS for {css_file}");
       let converted = style::convert(&css_file, style::OutputMode::Dev)?;
       let relative_path =
          css_file
@@ -240,7 +240,7 @@ pub fn build(
 fn clear_output_dir(config: &Config, _mode: Mode) -> Result<(), Error> {
    // TODO: only do this if in `Mode::Build`; in `Mode::Serve`, clear in-memory cache
    //   instead.
-   trace!("Removing output directory {}", config.output);
+   debug!("Removing output directory {}", config.output);
    if let Err(io_err) = fs::remove_dir_all(&config.output)
       && io_err.kind() != io::ErrorKind::NotFound
    {
@@ -385,6 +385,12 @@ pub enum Error {
 
    #[error("could not delete directory '{path}'")]
    RemoveDir {
+      path: Utf8PathBuf,
+      source: io::Error,
+   },
+
+   #[error("could not create directory '{path}'")]
+   CreateDir {
       path: Utf8PathBuf,
       source: io::Error,
    },
