@@ -46,17 +46,8 @@ pub fn build(
    mode: Mode,
 ) -> Result<(), Error> {
    trace!("Building in {directory}");
-   // TODO: only do this if in `Mode::Build`.
-   trace!("Removing output directory {}", config.output);
 
-   if let Err(io_err) = fs::remove_dir_all(&config.output) {
-      if io_err.kind() != io::ErrorKind::NotFound {
-         return Err(Error::RemoveDir {
-            source: io_err,
-            path: config.output.clone(),
-         });
-      }
-   }
+   clear_output_dir(config, mode)?;
 
    let input_dir = directory.as_ref();
    let site_files = SiteFiles::in_dir(input_dir)?;
@@ -244,6 +235,22 @@ pub fn build(
    }
 
    Ok(())
+}
+
+fn clear_output_dir(config: &Config, _mode: Mode) -> Result<(), Error> {
+   // TODO: only do this if in `Mode::Build`; in `Mode::Serve`, clear in-memory cache
+   //   instead.
+   trace!("Removing output directory {}", config.output);
+   if let Err(io_err) = fs::remove_dir_all(&config.output)
+      && io_err.kind() != io::ErrorKind::NotFound
+   {
+      Err(Error::RemoveDir {
+         source: io_err,
+         path: config.output.clone(),
+      })
+   } else {
+      Ok(())
+   }
 }
 
 fn copy(from: &Utf8Path, to: &Utf8Path) -> Result<(), Error> {
