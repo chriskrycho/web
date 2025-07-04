@@ -1,3 +1,4 @@
+mod filters;
 mod functions;
 mod rendering;
 
@@ -66,6 +67,7 @@ where
       })?;
    }
 
+   filters::add_all(&mut env);
    functions::add_all(&mut env);
 
    Ok(env)
