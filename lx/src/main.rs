@@ -299,7 +299,7 @@ enum Command {
    Develop {
       site_directory: Option<Utf8PathBuf>,
 
-      /// Port to serve the site on. Defaults to `24747`, i.e, "Chris"
+      /// Port to serve the site on. Defaults to `24747`, i.e., "Chris"
       #[arg(short, long)]
       port: Option<u16>,
    },
@@ -313,7 +313,7 @@ enum Command {
       #[clap(flatten)]
       paths: Paths,
 
-      /// Output any supplied metadata as a table (a la GitHub).
+      /// Output any supplied metadata as a table (à la GitHub).
       #[arg(short = 'm', long = "metadata", default_value("false"))]
       include_metadata: bool,
 
@@ -325,7 +325,7 @@ enum Command {
       full_html_output: bool,
    },
 
-   /// Work with syntax highlighting theme SCSS.
+   /// Work with syntax highlighting theme CSS.
    #[command(subcommand)]
    Theme(Theme),
 
