@@ -34,18 +34,18 @@ It is an explicit non-goal to be an exact drop-in replacement for any other gene
     - [ ] support podcast elements for RSS
     - [ ] render template not only into rendered content but also RSS/Atom
 
-- [ ] Server mode
+- [x] Server mode
 
     It's nice to be able to generate everything statically, but depending on the site it may *also* be nice to have an actual server application, whether for generating content or simply for serving it in a non-static fashion if so desired. (There's a lot of thought that would need to go into figuring out what this flow would look like.)
 
-    - [ ] Watchers – I want to be able to tweak content and regenerate it on the fly, or especially to be able to tweak a template and have it rebuild on the fly.
-    - [ ] SCSS integration
+    - [x] Watchers – I want to be able to tweak content and regenerate it on the fly, or especially to be able to tweak a template and have it rebuild on the fly.
+    - [x] ~~SCSS~~ CSS integration
 
 
-- [ ] Embrace parallelism and concurrency!
+- [x] Embrace parallelism and concurrency!
 
-    - [ ] Via threading, e.g. with Rayon
-    - [ ] Via `async`/`.await`?
+    - [x] Via threading, e.g. with Rayon
+    - [x] Via `async`/`.await`?
 
 - [ ] Supply (and make it easy to extend) a `create` command and interface. `lx create note`, `lx create journal` etc.
 
