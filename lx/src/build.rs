@@ -521,31 +521,14 @@ impl SiteFiles {
 
 impl fmt::Display for SiteFiles {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      let sep = String::from("\n      ");
-      let empty = String::from(" (none)");
-
-      let display = |paths: &[Utf8PathBuf]| {
-         if paths.is_empty() {
-            return empty.clone();
-         }
-
-         let path_strings = paths
-            .iter()
-            .map(|path| path.to_string())
-            .collect::<Vec<_>>()
-            .join(&sep);
-
-         sep.clone() + &path_strings
-      };
-
       // Yes, I could do these alignments with format strings; maybe at some
       // point I will switch to that.
       writeln!(f)?;
       writeln!(f, "  config files:{}", self.config)?;
-      writeln!(f, "  content files:{}", display(&self.content))?;
-      writeln!(f, "  data files:{}", display(&self.data))?;
-      writeln!(f, "  style files:{}", display(&self.styles))?;
-      writeln!(f, "  template files:{}", display(&self.templates))?;
+      writeln!(f, "  content files:{}", display_paths(&self.content))?;
+      writeln!(f, "  data files:{}", display_paths(&self.data))?;
+      writeln!(f, "  style files:{}", display_paths(&self.styles))?;
+      writeln!(f, "  template files:{}", display_paths(&self.templates))?;
       Ok(())
    }
 }
@@ -573,27 +556,28 @@ impl fmt::Display for SharedFiles {
       let sep = String::from("\n      ");
       let empty = String::from(" (none)");
 
-      let display = |paths: &[Utf8PathBuf]| {
-         if paths.is_empty() {
-            return empty.clone();
-         }
-
-         let path_strings = paths
-            .iter()
-            .map(|path| path.to_string())
-            .collect::<Vec<_>>()
-            .join(&sep);
-
-         sep.clone() + &path_strings
-      };
-
       // Yes, I could do these alignments with format strings; maybe at some
       // point I will switch to that.
       writeln!(f)?;
-      writeln!(f, "  style files:{}", display(&self.styles))?;
-      writeln!(f, "  template files:{}", display(&self.templates))?;
+      writeln!(f, "  style files:{}", display_paths(&self.styles))?;
+      writeln!(f, "  template files:{}", display_paths(&self.templates))?;
       Ok(())
    }
+}
+
+fn display_paths(paths: &[Utf8PathBuf]) -> String {
+   if paths.is_empty() {
+      return String::from(" (none)");
+   }
+
+   let sep = String::from("\n      ");
+   let path_strings = paths
+      .iter()
+      .map(|path| path.to_string())
+      .collect::<Vec<_>>()
+      .join(&sep);
+
+   sep + &path_strings
 }
 
 fn resolved_paths_for(glob_src: &str) -> Result<Vec<Utf8PathBuf>, Error> {
