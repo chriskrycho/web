@@ -5,7 +5,6 @@ use thiserror::Error;
 
 use crate::page::Page;
 
-#[allow(dead_code)]
 pub struct Archive<'p>(HashMap<Year, MonthMap<'p>>);
 
 impl<'e> Archive<'e> {
