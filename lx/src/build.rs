@@ -434,6 +434,8 @@ enum PageErrorKind {
    Render,
 }
 
+// This has its own type definition so that it can have its own `impl` for `fmt::Display`
+// (see immediately below) so that `Error` can simply `#[derive(thiserror::Error)]`.
 #[derive(Error, Debug)]
 pub struct PageError {
    errors: Vec<(Utf8PathBuf, page::Error)>,
