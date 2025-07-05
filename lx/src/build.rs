@@ -512,7 +512,7 @@ impl SiteFiles {
          data,
          templates: resolved_paths_for(&format!("{in_dir}/{}/*.jinja", *UI_DIR))?,
          static_files: resolved_paths_for(&format!("{in_dir}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{in_dir}/_styles/**/*.css"))?,
+         styles: resolved_paths_for(&format!("{in_dir}/_styles/*.css"))?,
       };
 
       Ok(site_files)
