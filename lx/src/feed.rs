@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::{
    data::config::Config,
-   page::{Page, PageAndConfig},
+   page::{Page, PostAndConfig},
 };
 
 /// Required resources for a `Feed`.
@@ -50,7 +50,7 @@ impl<'a> TryFrom<Feed<'a>> for JSONFeed {
       let items = feed
          .items
          .iter()
-         .map(|page| json_feed::FeedItem::from(PageAndConfig(page, feed.site_config)))
+         .map(|page| json_feed::FeedItem::from(PostAndConfig(page, feed.site_config)))
          .collect();
 
       // TODO: needs the info for the *feed* URL.

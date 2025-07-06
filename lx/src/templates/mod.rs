@@ -12,7 +12,7 @@ use thiserror::Error;
 
 use crate::{
    data::{config::Config, item::Metadata},
-   page::{Page, RootedPath, Source},
+   page::{Item, RootedPath, Source},
 };
 
 #[derive(Error, Debug)]
@@ -75,7 +75,7 @@ where
 
 pub fn render(
    env: &Environment,
-   page: &Page,
+   item: &Item,
    site: &Config,
    into: impl Write,
 ) -> Result<(), Error> {
@@ -92,29 +92,31 @@ pub fn render(
 
    debug!(
       "Rendering page '{}' ({:?}) with layout '{}'",
-      page.data.title, page.source.path, page.data.layout
+      item.title(),
+      item.path(),
+      item.layout()
    );
 
    let tpl =
-      env.get_template(&page.data.layout)
+      env.get_template(&item.layout())
          .map_err(|source| Error::MissingTemplate {
             source,
-            path: page.source.path.to_owned(),
+            path: item.source().path.clone(),
          })?;
 
    tpl.render_to_write(
       Context {
-         content: page.content.html(),
-         data: &page.data,
+         content: item.content().html(),
+         data: &item.data(),
          config: site,
-         path: &page.path,
-         source: page.source,
+         path: &item.path(),
+         source: item.source(),
       },
       into,
    )
    .map(|_state| { /* throw it away for now; return it if we need it later */ })
    .map_err(|source| Error::Render {
       source,
-      path: page.source.path.to_owned(),
+      path: item.source().path.clone(),
    })
 }

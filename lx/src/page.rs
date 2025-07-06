@@ -1,15 +1,16 @@
-use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
-
-use camino::{Utf8Path, Utf8PathBuf};
-use lx_md::{self, Markdown, RenderError, ToRender};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use uuid::Uuid;
-
 use crate::data::{
    config::Config,
-   item::{self, Metadata, Slug, cascade::Cascade, serial},
+   item::{self, cascade::Cascade, serial, Metadata, Slug},
 };
+use camino::{Utf8Path, Utf8PathBuf};
+use chrono::{DateTime, FixedOffset};
+use json_feed::Author;
+use lx_md::{self, Markdown, RenderError, ToRender};
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
+use thiserror::Error;
+use uuid::Uuid;
 
 pub fn prepare<'e>(
    md: &Markdown,
@@ -21,7 +22,7 @@ pub fn prepare<'e>(
       to_render,
    } = lx_md::prepare(&source.contents)?;
 
-   let data = metadata_src
+   let (data, date) = metadata_src
       .ok_or(Error::MissingMetadata)
       .and_then(|src| serial::Item::try_parse(&src).map_err(Error::from))
       .and_then(|item_metadata| {
@@ -35,12 +36,19 @@ pub fn prepare<'e>(
          .map_err(Error::from)
       })?;
 
-   Ok(Prepared { data, to_render })
+   Ok(Prepared {
+      data,
+      date,
+      to_render,
+   })
 }
 
 pub struct Prepared<'e> {
-   /// The fully-parsed metadata associated with the page.
+   /// The fully-parsed metadata associated with the item.
    data: Metadata,
+
+   /// The date and time of the item, if any.
+   date: Option<DateTime<FixedOffset>>,
 
    to_render: ToRender<'e>,
 }
@@ -56,6 +64,7 @@ impl Prepared<'_> {
    ) -> Result<Rendered, Error> {
       Ok(Rendered {
          content: md.emit(self.to_render, |text| rewrite(text, &self.data))?,
+         date: self.date,
          data: self.data,
       })
    }
@@ -63,6 +72,7 @@ impl Prepared<'_> {
 
 pub struct Rendered {
    content: lx_md::Rendered,
+   date: Option<DateTime<FixedOffset>>,
    data: Metadata,
 }
 
@@ -85,20 +95,20 @@ impl fmt::Display for Id {
    }
 }
 
-/// A fully-resolved representation of a page.
+/// A fully resolved representation of a page.
 ///
 /// In this struct, the metadata has been parsed and resolved, and the content has been
 /// converted from Markdown to HTML and preprocessed with both the templating engine and
 /// my typography tooling. It is ready to render into the target layout template specified
-/// by its `data: Metadata` and then to print to the file system.
+/// by its [`Metadata`] and then to print to the file system.
 #[derive(Debug)]
 pub struct Page<'s> {
    pub id: Id,
 
-   /// The fully-parsed metadata associated with the page.
+   /// The fully parsed metadata associated with the page.
    pub data: Metadata,
 
-   /// The fully-rendered contents of the page.
+   /// The fully rendered contents of the page.
    pub content: lx_md::Rendered,
 
    pub source: &'s Source,
@@ -106,29 +116,109 @@ pub struct Page<'s> {
    pub path: RootedPath,
 }
 
-impl<'s> Page<'s> {
+pub enum Item<'s> {
+   Page(Page<'s>),
+   Post(Post<'s>),
+}
+
+impl<'s> Item<'s> {
    pub fn from_rendered(
       rendered: Rendered,
       source: &'s Source,
       in_dir: &Utf8Path,
-   ) -> Result<Page<'s>, Error> {
-      // TODO: This is the right idea for where I want to take this, but ultimately I
-      // don't want to do it based on the source path (or if I do, *only* initially as
-      // a way of generating it to start).
+   ) -> Result<Self, Error> {
       let id = Id(Uuid::new_v5(
          &Uuid::NAMESPACE_OID,
          source.path.as_os_str().as_bytes(),
       ));
 
       let path = RootedPath::new(&rendered.data.slug, in_dir)?;
-
-      Ok(Page {
+      let page = Page {
          id,
          content: rendered.content,
          data: rendered.data,
          source,
          path,
-      })
+      };
+
+      let item = match rendered.date {
+         Some(date) => Item::Post(Post { date, page }),
+         None => Item::Page(page),
+      };
+
+      Ok(item)
+   }
+
+   pub fn content(&self) -> &lx_md::Rendered {
+      match self {
+         Item::Page(page) => &page.content,
+         Item::Post(post) => &post.page.content,
+      }
+   }
+
+   pub fn layout(&self) -> &str {
+      self.data().layout.as_str()
+   }
+
+   pub fn path(&self) -> &RootedPath {
+      match self {
+         Item::Page(page) => &page.path,
+         Item::Post(post) => &post.page.path,
+      }
+   }
+
+   pub fn source(&self) -> &Source {
+      match self {
+         Item::Page(page) => page.source,
+         Item::Post(post) => post.page.source,
+      }
+   }
+
+   pub fn title(&self) -> &str {
+      self.data().title.as_ref()
+   }
+
+   pub fn data(&self) -> &Metadata {
+      match self {
+         Item::Page(page) => &page.data,
+         Item::Post(post) => &post.page.data,
+      }
+   }
+}
+
+// NOTE: the following all assume stable, unique identifiers for pages. The existing
+//   implementation *does* handle this because it creates a v5 UUID from the path to the
+//   file, which by definition must be unique (you cannot have two files with the same
+//   path in any file system I know of!), but this only holds as long as that does.
+impl PartialEq for Page<'_> {
+   fn eq(&self, other: &Self) -> bool {
+      self.id == other.id
+   }
+}
+
+impl Eq for Page<'_> {}
+
+impl Hash for Page<'_> {
+   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+      self.id.hash(state);
+   }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Post<'e> {
+   pub page: Page<'e>,
+   pub date: DateTime<FixedOffset>,
+}
+
+impl<'e> PartialOrd for Post<'e> {
+   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+      Some(self.date.cmp(&other.date))
+   }
+}
+
+impl Ord for Post<'_> {
+   fn cmp(&self, other: &Self) -> Ordering {
+      self.date.cmp(&other.date)
    }
 }
 
@@ -200,26 +290,46 @@ impl AsRef<Utf8Path> for RootedPath {
 }
 
 /// Convenience to allow `From` for `FeedItem`.
-pub struct PageAndConfig<'p, 'c, 'e>(pub &'p Page<'e>, pub &'c Config);
+pub struct PostAndConfig<'p, 'c, 'e>(pub &'p Post<'e>, pub &'c Config);
 
-// TODO: This will need to take `From` a different type, one that wraps `Page`
+// TODO: This will need to take `From` a different type, one that wraps `Post`
 // and probably also `Config` (e.g. to build the full URL).
-impl From<PageAndConfig<'_, '_, '_>> for json_feed::FeedItem {
-   fn from(PageAndConfig(page, config): PageAndConfig) -> Self {
+impl From<PostAndConfig<'_, '_, '_>> for json_feed::FeedItem {
+   fn from(PostAndConfig(post, config): PostAndConfig) -> Self {
       json_feed::FeedItem {
-         id: page.id.to_string(),
-         url: Some(page.path.url(config)),
+         id: post.page.id.to_string(),
+         url: Some(post.page.path.url(config)),
          external_url: None, // TODO: support for page.link etc.
-         title: Some(page.data.title.clone()),
+         title: Some(post.page.data.title.clone()),
          content_text: None, // TODO: use this for microblogging?
-         content_html: Some(page.content.html().to_string()),
-         summary: page.data.summary.as_ref().map(|summary| summary.plain()),
-         image: None,        // TODO: add support for images to metadata
+         content_html: Some(post.page.content.html().to_string()),
+         summary: post
+            .page
+            .data
+            .summary
+            .as_ref()
+            .map(|summary| summary.plain()),
+         image: post
+            .page
+            .data
+            .image
+            .as_ref()
+            .map(|image| image.url().to_string()),
          banner_image: None, // TODO: add support for these if I care?
-         date_published: page.data.date.map(|date| date.to_rfc3339()),
-         date_modified: None, // TODO: from `page.metadata.updated` in some way
-         author: None,        // TODO: it me!
-         tags: Some(page.data.tags.clone()),
+         date_published: Some(post.date.to_rfc3339()),
+         date_modified: post
+            .page
+            .data
+            .updated
+            .last()
+            .map(|update| update.at.to_rfc3339()),
+         author: Some(Author::All {
+            avatar: "https://cdn.chriskrycho.com/images/avatars/2024%20600%C3%97600.jpeg"
+               .to_string(),
+            name: "Chris Krycho".to_string(),
+            url: "https://www.chriskrycho.com".to_string(),
+         }),
+         tags: Some(post.page.data.tags.clone()),
          attachments: None,
       }
    }

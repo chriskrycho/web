@@ -1,53 +1,65 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{Datelike, Month};
 use thiserror::Error;
 
-use crate::page::Page;
+use crate::page::Post;
 
-pub struct Archive<'p>(HashMap<Year, MonthMap<'p>>);
+/// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
+/// the posts.
+pub struct Archive<'p>(BTreeMap<Year, MonthMap<'p>>);
 
 impl<'e> Archive<'e> {
-   pub fn new(pages: &'e [Page<'e>], order: Order) -> Result<Archive<'e>, Error> {
-      let mut pages = pages
-         .iter()
-         .filter(|page| page.data.date.is_some())
-         .collect::<Vec<&Page>>();
+   /// Reference all pages in an unordered fashion.
+   pub fn new(
+      posts: impl IntoIterator<Item = &'e Post<'e>>,
+   ) -> Result<Archive<'e>, Error> {
+      let mut year_map = BTreeMap::<Year, MonthMap<'e>>::new();
 
-      pages.sort_by(|a, b| {
-         // I just filtered to items which have dates.
-         let a_date = a.data.date.unwrap();
-         let b_date = b.data.date.unwrap();
-         match order {
-            Order::OldFirst => a_date.partial_cmp(&b_date).unwrap(),
-            Order::NewFirst => b_date.partial_cmp(&a_date).unwrap(),
-         }
-      });
+      for post in posts {
+         let year = Year::from(post.date.year_ce().1);
 
-      let mut year_map = HashMap::new();
+         let month = post.date.month();
+         let month = Month::try_from(u8::try_from(month).unwrap())
+            .map_err(|source| Error::BadMonth { raw: month, source })?;
 
-      for page in pages {
-         if let Some(date) = &page.data.date {
-            let year = date.year_ce().1;
+         let day = Day::try_from(post.date.day()).map_err(Error::from)?;
 
-            let month = date.month();
-            let month = Month::try_from(u8::try_from(month).unwrap())
-               .map_err(|source| Error::BadMonth { raw: month, source })?;
-
-            let day = Day::try_from(date.day()).map_err(Error::from)?;
-
-            let month_map = year_map.entry(year).or_insert_with(HashMap::new);
-            let day_map = month_map.entry(month).or_insert_with(HashMap::new);
-            day_map.entry(day).or_insert_with(Vec::new).push(page);
-         }
+         let month_map = year_map.entry(year).or_insert_with(BTreeMap::new);
+         let day_map = month_map.entry(month).or_insert_with(BTreeMap::new);
+         day_map
+            .entry(day)
+            .or_insert_with(BTreeSet::new)
+            .insert(post);
       }
 
       Ok(Archive(year_map))
    }
+
+   /// Iterate over all pages in the archive, returning a tuple of (Y, M, D, Page) so that
+   /// I can then filter on that by topic, iterate
+   pub fn iter(&self) -> impl IntoIterator<Item = (Year, Month, Day, &'e Post<'e>)> {
+      self
+         .0
+         .iter()
+         .flat_map(|(&year, month_map)| {
+            month_map
+               .iter()
+               .map(move |(&month, day_map)| (year, month, day_map))
+         })
+         .flat_map(|(year, month, day_map)| {
+            day_map
+               .iter()
+               .map(move |(&day, pages)| (year, month, day, pages))
+         })
+         .flat_map(|(year, month, day, pages)| {
+            pages.iter().map(move |&page| (year, month, day, page))
+         })
+   }
 }
 
+#[allow(dead_code)]
 pub enum Order {
-   #[allow(dead_code)]
    OldFirst,
    NewFirst,
 }
@@ -67,13 +79,24 @@ pub enum Error {
    },
 }
 
-type Year = u32;
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+pub struct Year {
+   raw: u32,
+}
 
-type MonthMap<'p> = HashMap<Month, DayMap<'p>>;
+impl From<u32> for Year {
+   fn from(value: u32) -> Self {
+      Self { raw: value }
+   }
+}
 
-type DayMap<'p> = HashMap<Day, Vec<&'p Page<'p>>>;
+type MonthMap<'p> = BTreeMap<Month, DayMap<'p>>;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+type DayMap<'p> = BTreeMap<Day, BTreeSet<&'p Post<'p>>>;
+
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub struct Day {
    raw: u8,
 }

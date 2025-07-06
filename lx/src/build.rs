@@ -9,14 +9,14 @@ use thiserror::Error;
 use lx_md::Markdown;
 
 use crate::{
-   archive::{Archive, Order},
+   archive::Archive,
    canonicalized::Canonicalized,
    data::{
       config::{self, Config},
       item::cascade::{Cascade, CascadeLoadError},
    },
    error::write_to_fmt,
-   page::{self, Page, Source},
+   page::{self, Item, Source},
    style, templates,
 };
 
@@ -132,7 +132,7 @@ pub fn build(
 
    let content_dir = input_dir.join("content");
 
-   let (errors, pages): (Vec<_>, Vec<_>) = prepared_pages
+   let (errors, items): (Vec<_>, Vec<_>) = prepared_pages
       .into_par_iter()
       .map(|(prepared, source)| {
          // TODO: once the taxonomies exist, pass them here.
@@ -144,7 +144,7 @@ pub fn build(
                // TODO: smarten the typography!
                Ok(after_jinja)
             })
-            .and_then(|rendered| Page::from_rendered(rendered, source, &content_dir))
+            .and_then(|rendered| Item::from_rendered(rendered, source, &content_dir))
             .map_err(|e| (source.path.clone(), e))
       })
       .partition_map(Either::from);
@@ -153,9 +153,12 @@ pub fn build(
       return Err(Error::rendering_page(errors));
    }
 
-   // TODO: this is the wrong spot for this. There is enough info to generate this and
+   // TODO: this may be the wrong spot for this. There is enough info to generate this and
    // other such views above, now that I have split the phases apart.
-   let _archive = Archive::new(&pages, Order::NewFirst);
+   let _archive = Archive::new(items.iter().filter_map(|item| match item {
+      Item::Post(post) => Some(post),
+      _ => None,
+   }));
 
    // TODO: this and the below are identical, except for the directory from which they
    // come. This is suggestive: maybe extract into a function for handling both, and
@@ -189,11 +192,11 @@ pub fn build(
    }
 
    // TODO: this can and probably should use async?
-   for page in pages {
-      let relative_path = page.path.as_ref().join("index.html");
+   for item in items {
+      let relative_path = item.path().as_ref().join("index.html");
       let path = config.output.join(relative_path);
 
-      trace!("writing page {} to {}", page.data.title, path);
+      trace!("writing page {} to {}", item.title(), path);
       let containing_dir = path
          .parent()
          .unwrap_or_else(|| panic!("{path} should have a containing dir!"));
@@ -204,7 +207,7 @@ pub fn build(
       })?;
 
       let mut buf = Vec::new();
-      templates::render(&jinja_env, &page, config, &mut buf)?;
+      templates::render(&jinja_env, &item, config, &mut buf)?;
 
       emit(&path, &buf)?;
    }
@@ -555,9 +558,6 @@ impl SharedFiles {
 
 impl fmt::Display for SharedFiles {
    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      let sep = String::from("\n      ");
-      let empty = String::from(" (none)");
-
       // Yes, I could do these alignments with format strings; maybe at some
       // point I will switch to that.
       writeln!(f)?;

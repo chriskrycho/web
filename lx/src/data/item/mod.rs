@@ -15,21 +15,11 @@ use crate::page;
 
 use self::cascade::Cascade;
 
-/// Fully resolved metadata for an item, after merging the data from the item's
-/// own header with all items in its data cascade.
-///
-/// **NOTE:** Although `title` and `date` are optional here, this is a function
-/// of the fact that minijinja has no notion of pattern-matching, and therefore
-/// no easy way to deal with a nested sum type. One or the other *is* required,
-/// but this is handled by way of runtime validation. (Nothing makes me want so
-/// badly to implement my own type-safe template language…)
+/// Shared data for both [`Post`]s and [`Page`]s.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
    /// The title of the item.
    pub title: String,
-
-   /// The date the item was published.
-   pub date: Option<DateTime<FixedOffset>>,
 
    /// The path to this piece of content.
    pub slug: Slug,
@@ -58,7 +48,7 @@ impl Metadata {
       cascade: &Cascade,
       default_template_name: String,
       md: &Markdown,
-   ) -> Result<Self, Error> {
+   ) -> Result<(Self, Option<DateTime<FixedOffset>>), Error> {
       let permalink = item.permalink.map(|permalink| {
          permalink
             .trim_start_matches('/')
@@ -71,8 +61,6 @@ impl Metadata {
          source: None,
       })?;
 
-      let render = |s: String| Rendered::markdown(&s, md);
-
       let work = MusicalWork::resolved(item.work, cascade.work(dir))?;
 
       let title = work
@@ -81,9 +69,10 @@ impl Metadata {
          .or(item.title)
          .ok_or_else(|| Error::MissingRequiredField { name: "title" })?;
 
+      let render = |s: String| Rendered::markdown(&s, md);
+
       let metadata = Metadata {
          title,
-         date: item.date,
          slug: Slug::new(permalink.as_deref(), &source.path)?,
          subtitle: item.subtitle.map(render).transpose()?,
          layout: item
@@ -142,7 +131,7 @@ impl Metadata {
          work,
       };
 
-      Ok(metadata)
+      Ok((metadata, item.date))
    }
 }
 
@@ -533,7 +522,7 @@ where
    S: fmt::Display,
 {
    // Might be a thing to think about cleaning up later to reduce allocations,
-   // but honestly, I don’t think it will matter very often!
+   // but honestly, I don't think it will matter very often!
    let strings = strings.into_iter().collect::<Vec<_>>();
    match strings.len() {
       0 => None,
