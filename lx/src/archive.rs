@@ -25,12 +25,9 @@ impl<'e> Archive<'e> {
 
          let day = Day::try_from(post.date.day()).map_err(Error::from)?;
 
-         let month_map = year_map.entry(year).or_insert_with(BTreeMap::new);
-         let day_map = month_map.entry(month).or_insert_with(BTreeMap::new);
-         day_map
-            .entry(day)
-            .or_insert_with(BTreeSet::new)
-            .insert(post);
+         let month_map = year_map.entry(year).or_default();
+         let day_map = month_map.entry(month).or_default();
+         day_map.entry(day).or_default().insert(post);
       }
 
       Ok(Archive(year_map))

@@ -125,11 +125,6 @@ pub fn build(
 
    debug!("prepared {count} pages", count = prepared_pages.len());
 
-   // TODO: build taxonomies. Structurally, I *think* the best thing to do is
-   // provide a top-level `Archive` and then filter on its results, since that
-   // avoids having to do the sorting more than once. So build the taxonomies
-   // *second*, as filtered versions of the Archive?
-
    let content_dir = input_dir.join("content");
 
    let (errors, items): (Vec<_>, Vec<_>) = prepared_pages
@@ -153,8 +148,10 @@ pub fn build(
       return Err(Error::rendering_page(errors));
    }
 
-   // TODO: this may be the wrong spot for this. There is enough info to generate this and
-   // other such views above, now that I have split the phases apart.
+   // TODO: build taxonomies. Structurally, I *think* the best thing to do is filter on
+   //    this top-level `Archive`, which avoids having to do the sorting more than once.
+   // TODO: Identify the taxonomical system I want to use for the site(s)!
+
    let _archive = Archive::new(items.iter().filter_map(|item| match item {
       Item::Post(post) => Some(post),
       _ => None,

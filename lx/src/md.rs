@@ -33,43 +33,43 @@ pub fn convert(
       )?;
    }
 
-   if include.metadata {
-      if let Some(metadata) = meta {
-         let metadata_table = match serde_yaml::from_str::<Value>(&metadata)? {
-            // Allowed, carry on. Uses `value` so that `yaml_to_value` below can simply be
-            // a recursive function, with no special casing for `value`; I handle that
-            // here.
-            value @ Value::Mapping(_) => Ok(value),
+   if include.metadata
+      && let Some(metadata) = meta
+   {
+      let metadata_table = match serde_yaml::from_str::<Value>(&metadata)? {
+         // Allowed, carry on. Uses `value` so that `yaml_to_value` below can simply be
+         // a recursive function, with no special casing for `value`; I handle that
+         // here.
+         value @ Value::Mapping(_) => Ok(value),
 
-            // Not allowed!
-            Value::Null => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::Null,
-               src: "null".to_string(),
-            }),
-            Value::Bool(src) => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::Bool,
-               src: src.to_string(),
-            }),
-            Value::Number(src) => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::Number,
-               src: src.to_string(),
-            }),
-            Value::String(src) => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::String,
-               src,
-            }),
-            Value::Sequence(src) => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::Sequence,
-               src: format!("{src:?}"),
-            }),
-            Value::Tagged(src) => Err(Error::CouldNotRenderYamlMetadata {
-               kind: InvalidKind::Tagged,
-               src: format!("{src:?}"),
-            }),
-         }?;
+         // Not allowed!
+         Value::Null => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::Null,
+            src: "null".to_string(),
+         }),
+         Value::Bool(src) => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::Bool,
+            src: src.to_string(),
+         }),
+         Value::Number(src) => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::Number,
+            src: src.to_string(),
+         }),
+         Value::String(src) => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::String,
+            src,
+         }),
+         Value::Sequence(src) => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::Sequence,
+            src: format!("{src:?}"),
+         }),
+         Value::Tagged(src) => Err(Error::CouldNotRenderYamlMetadata {
+            kind: InvalidKind::Tagged,
+            src: format!("{src:?}"),
+         }),
+      }?;
 
-         yaml_to_html(&metadata_table, output)?;
-      }
+      yaml_to_html(&metadata_table, output)?;
    }
 
    write(rendered.html(), output)?;

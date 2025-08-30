@@ -5,9 +5,10 @@ use std::convert::TryFrom;
 use json_feed::{AuthorOptions, JSONFeed};
 use thiserror::Error;
 
+use crate::page::Post;
 use crate::{
    data::config::Config,
-   page::{Page, PostAndConfig},
+   page::PostAndConfig,
 };
 
 /// Required resources for a `Feed`.
@@ -22,11 +23,11 @@ pub struct Feed<'a> {
    /// The set of items to render in the feed. A read-only slice because I will
    /// never actually need to *write* to these. I just need the parsed metadata
    /// and rendered HTML contents of the page, to render into the template.
-   items: &'a [Page<'a>],
+   items: &'a [Post<'a>],
 }
 
 impl<'a> Feed<'a> {
-   pub fn _new(title: String, site_config: &'a Config, items: &'a [Page]) -> Feed<'a> {
+   pub fn _new(title: String, site_config: &'a Config, items: &'a [Post]) -> Feed<'a> {
       Feed {
          title,
          site_config,

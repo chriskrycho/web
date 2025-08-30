@@ -98,7 +98,7 @@ pub fn render(
    );
 
    let tpl =
-      env.get_template(&item.layout())
+      env.get_template(item.layout())
          .map_err(|source| Error::MissingTemplate {
             source,
             path: item.source().path.clone(),
@@ -107,9 +107,9 @@ pub fn render(
    tpl.render_to_write(
       Context {
          content: item.content().html(),
-         data: &item.data(),
+         data: item.data(),
          config: site,
-         path: &item.path(),
+         path: item.path(),
          source: item.source(),
       },
       into,
