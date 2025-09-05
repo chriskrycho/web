@@ -63,3 +63,8 @@ site/*/public
 
 # node nonsense
 node_modules
+
+# MCP indexes etc.
+.codanna/index
+.fastembed_cache
+.claude/settings.local.json

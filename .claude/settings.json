@@ -1,0 +1,12 @@
+{
+   "permissions": {
+      "allow": [
+         "Codanna"
+      ],
+      "deny": []
+   },
+   "enabledMcpjsonServers": [
+      "Codanna"
+   ],
+   "enableAllProjectMcpServers": true
+}
