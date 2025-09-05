@@ -1,27 +1,29 @@
 use std::{
+   fmt,
    future::Future,
    io,
    net::SocketAddr,
    path::{Path, PathBuf},
    pin::pin,
+   sync::Arc,
    time::Duration,
 };
 
 use axum::{
+   Router,
    extract::{
-      ws::{Message, WebSocket}, State,
-      WebSocketUpgrade,
+      State, WebSocketUpgrade,
+      ws::{Message, WebSocket},
    },
    response::Response,
    routing::{self},
-   Router,
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use futures::{
-   future::{self, Either}, SinkExt,
-   StreamExt,
+   SinkExt, StreamExt,
+   future::{self, Either},
 };
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, log_enabled, trace, warn};
 use lx_md::Markdown;
 use notify::RecursiveMode;
 use notify_debouncer_full::DebouncedEvent;
@@ -31,19 +33,19 @@ use tokio::{
    runtime::Runtime,
    sync::{
       broadcast::{
-         self, error::{RecvError, SendError},
-         Sender,
+         self, Sender,
+         error::{RecvError, SendError},
       },
       mpsc,
    },
-   task::JoinError,
+   task::{self, JoinError},
 };
 use tower_http::services::{ServeDir, ServeFile};
 use watchexec::error::CriticalError;
 
 // Initially, just rebuild everything. This can get smarter later!
 use crate::{
-   build::{self, config_for},
+   build::{self, build, config_for},
    canonicalized::Canonicalized,
    data::config::Config,
 };
@@ -75,7 +77,7 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
 
    // TODO: consider how to loop on rebuild and changes and *not serve* until there has
    // been a successful build.
-   let first_build = build::build(&site_dir, &config, &md, build::Mode::Serve);
+   let first_build = build(&site_dir, &config, &md, build::Mode::Serve);
    if let Err(e) = first_build {
       eprintln!("Initial build failed: {e:?}");
    }
@@ -90,8 +92,13 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
 
    let serve_handle = rt.spawn(serve_in(config.output.clone(), port, rebuild_tx.clone()));
    let watch_handle = rt.spawn(watch_in(site_dir.clone(), change_tx.clone()));
-   let rebuild_handle =
-      rt.spawn(rebuild(site_dir, config, md, change_tx, rebuild_tx.clone()));
+   let rebuild_handle = rt.spawn(rebuild(
+      Arc::new(site_dir),
+      Arc::new(config),
+      Arc::new(md),
+      change_tx,
+      rebuild_tx.clone(),
+   ));
 
    match rt.block_on(race_all([serve_handle, watch_handle, rebuild_handle])) {
       Ok(Ok(_)) => {
@@ -109,60 +116,76 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
    }
 }
 
-// TODO: consider whether this needs to be `async`, and how it ought to interact with the
-//   change notifications as well as the Rayon threadpool that `build` will use under the
-//   hood for a bunch of its highly-parallelizable work.
 async fn rebuild(
-   site_dir: Canonicalized,
-   site_config: Config,
-   md: Markdown,
+   site_dir: Arc<Canonicalized>,
+   site_config: Arc<Config>,
+   md: Arc<Markdown>,
    change: Sender<Change>,
    rebuild_tx: Sender<Rebuild>,
 ) -> Result<(), Error> {
    let mut change = change.subscribe();
    loop {
-      match change.recv().await {
-         Ok(Change { paths }) => {
-            trace!(
-               "rebuilding because of change to file(s):\n\t{}",
-               paths
-                  .iter()
-                  .map(|p| p.display().to_string())
-                  .collect::<Vec<_>>()
-                  .join("\n\t")
-            );
+      let rebuilt_for = match change.recv().await {
+         // If the channel closed, do not keep listening for further changes.
+         Err(RecvError::Closed) => break,
 
-            let rebuild =
-               match build::build(&site_dir, &site_config, &md, build::Mode::Serve)
-                  .map_err(Error::from)
-               {
-                  Ok(()) => {
-                     info!("rebuild completed");
-                     Rebuild::Success { paths }
-                  }
-                  Err(err) => {
-                     warn!("rebuild failed: {err:#?}");
-                     Rebuild::Failure {
-                        cause: err.to_string(),
-                     }
-                  }
-               };
+         // If there were *specific* changes sent, rebuild for those. (Presently this does
+         // nothing, but in the future I may update it to do more granular rebuilds.)
+         Ok(Change { paths }) => RebuiltFor::Paths(paths),
 
-            match rebuild_tx.send(rebuild) {
-               Ok(recv_count) => {
-                  trace!("sent rebuild notification to {recv_count} open receivers");
-               }
-               Err(_rebuild) => {
-                  trace!("no open receiver, so rebuild notification ignored");
+         // If the channel explicit notifies that it lagged, that means some number of
+         // changes were *missed*, which in turn means the file system saw changes that
+         // did not make it here. Go ahead and rebuild, but acknowledging that there is no
+         // way to do so granularly.
+         Err(RecvError::Lagged(skipped)) => {
+            error!("FS change notification: lost {skipped} messages");
+            RebuiltFor::All
+         }
+      };
+
+      // Skip the path iteration and allocation if it's not useful!
+      if log_enabled!(log::Level::Trace) {
+         trace!("rebuilding because of change to file(s):\n\t{rebuilt_for}");
+      }
+
+      let site_dir = Arc::clone(&site_dir);
+      let site_config = Arc::clone(&site_config);
+      let md = Arc::clone(&md);
+
+      let rebuild_task = task::spawn_blocking(move || {
+         build(&site_dir, &site_config, &md, build::Mode::Serve)
+      });
+
+      let rebuild = match rebuild_task.await {
+         Ok(build_result) => match build_result.map_err(Error::from) {
+            Ok(()) => {
+               info!("rebuild completed");
+               Rebuild::Success {
+                  for_changes: rebuilt_for,
                }
             }
+            Err(err) => {
+               warn!("rebuild failed: {err:#?}");
+               Rebuild::Failure {
+                  cause: err.to_string(),
+               }
+            }
+         },
+         Err(join_err) => {
+            warn!("rebuild task panicked: {join_err:#?}");
+            Rebuild::Failure {
+               cause: format!("rebuild task panicked: {join_err}"),
+            }
          }
+      };
 
-         Err(RecvError::Lagged(skipped)) => {
-            error!("FS change notification: lost {skipped} messages")
+      match rebuild_tx.send(rebuild) {
+         Ok(recv_count) => {
+            trace!("sent rebuild notification to {recv_count} open receivers");
          }
-
-         Err(RecvError::Closed) => break,
+         Err(_rebuild) => {
+            trace!("no open receiver, so rebuild notification ignored");
+         }
       }
    }
 
@@ -223,22 +246,28 @@ async fn websocket(socket: WebSocket, rebuild_tx: Sender<Rebuild>) {
       loop {
          match rebuild_rx.recv().await {
             Ok(rebuild) => match rebuild {
-               Rebuild::Success { paths } => {
-                  let paths_desc = paths
-                     .iter()
-                     .map(|p| p.to_string_lossy())
-                     .collect::<Vec<_>>()
-                     .join("\n\t");
+               Rebuild::Success {
+                  for_changes: rebuilt_for,
+               } => {
+                  let rebuild_desc = match &rebuilt_for {
+                     RebuiltFor::Paths(path_bufs) => path_bufs
+                        .iter()
+                        .map(|p| p.to_string_lossy())
+                        .collect::<Vec<_>>()
+                        .join("\n\t"),
+                     RebuiltFor::All => "(all)".into(),
+                  };
 
-                  debug!("sending WebSocket reload message with paths:\n\t{paths_desc}");
+                  debug!(
+                     "sending WebSocket reload message with paths:\n\t{rebuild_desc}"
+                  );
 
-                  let payload = serde_json::to_string(&ChangePayload::Reload {
-                     paths: paths.clone(),
-                  })
-                  .unwrap_or_else(|e| panic!("Could not serialize payload: {e}"));
+                  let payload =
+                     serde_json::to_string(&ChangePayload::Reload { rebuilt_for })
+                        .unwrap_or_else(|e| panic!("Could not serialize payload: {e}"));
 
                   match ws_tx.send(Message::Text(payload)).await {
-                     Ok(_) => debug!("Successfully sent {paths_desc}"),
+                     Ok(_) => debug!("Successfully sent {rebuild_desc}"),
                      Err(reason) => error!("Could not send WebSocket message:\n{reason}"),
                   }
                }
@@ -320,7 +349,7 @@ fn handle(
 
 #[derive(Debug, Serialize)]
 enum ChangePayload {
-   Reload { paths: Vec<PathBuf> },
+   Reload { rebuilt_for: RebuiltFor },
 }
 
 #[derive(Debug)]
@@ -349,8 +378,29 @@ struct Change {
 
 #[derive(Debug, Clone)]
 pub enum Rebuild {
-   Success { paths: Vec<PathBuf> },
+   Success { for_changes: RebuiltFor },
    Failure { cause: String },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum RebuiltFor {
+   Paths(Vec<PathBuf>),
+   All,
+}
+
+impl fmt::Display for RebuiltFor {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      let s = match self {
+         RebuiltFor::Paths(path_bufs) => path_bufs
+            .iter()
+            .map(|p| p.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("\n\t"),
+         RebuiltFor::All => "(all)".into(),
+      };
+
+      write!(f, "{s}")
+   }
 }
 
 async fn watch_in(input: Canonicalized, change_tx: Sender<Change>) -> Result<(), Error> {
