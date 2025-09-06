@@ -1,11 +1,11 @@
 /* These are all foundational. */
-@import 'baselines.css';
-@import 'colors/_index.css';
-@import 'typography/_index.css';
-@import 'animation.css';
+@import './baselines.css';
+@import './colors/_index.css';
+@import './typography/_index.css';
+@import './animation.css';
 
 /* Whereas components *use* the foundational layers. */
-@import "components/_index.css";
+@import "./components/_index.css";
 
 /* TODO: drop this once its contributions have been integrated. */
-@import 'from-cascadea.css';
+@import './from-cascadea.css';
