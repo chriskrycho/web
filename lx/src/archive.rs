@@ -1,20 +1,30 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use chrono::{Datelike, Month};
+use indexmap::{IndexMap, IndexSet};
+use minijinja::Environment;
+use serde::Serialize;
 use thiserror::Error;
 
-use crate::page::Post;
+use crate::{
+   page::{Item, Post},
+   templates::view::{self, View},
+};
 
 /// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
 /// the posts.
-pub struct Archive<'p>(BTreeMap<Year, MonthMap<'p>>);
+#[derive(Debug, Serialize)]
+pub struct Archive<'p>(IndexMap<Year, MonthMap<'p>>);
 
 impl<'e> Archive<'e> {
    /// Reference all pages in an unordered fashion.
    pub fn new(
-      posts: impl IntoIterator<Item = &'e Post<'e>>,
+      items: impl IntoIterator<Item = &'e Item<'e>>,
    ) -> Result<Archive<'e>, Error> {
-      let mut year_map = BTreeMap::<Year, MonthMap<'e>>::new();
+      let mut year_map = IndexMap::<Year, MonthMap<'e>>::new();
+
+      let posts = items.into_iter().filter_map(|item| match item {
+         Item::Page(_) => None,
+         Item::Post(post) => Some(post),
+      });
 
       for post in posts {
          let year = Year::from(post.date.year_ce().1);
@@ -32,26 +42,17 @@ impl<'e> Archive<'e> {
 
       Ok(Archive(year_map))
    }
+}
 
-   /// Iterate over all pages in the archive, returning a tuple of (Y, M, D, Page) so that
-   /// I can then filter on that by topic, iterate
-   pub fn iter(&self) -> impl IntoIterator<Item = (Year, Month, Day, &'e Post<'e>)> {
-      self
-         .0
-         .iter()
-         .flat_map(|(&year, month_map)| {
-            month_map
-               .iter()
-               .map(move |(&month, day_map)| (year, month, day_map))
-         })
-         .flat_map(|(year, month, day_map)| {
-            day_map
-               .iter()
-               .map(move |(&day, pages)| (year, month, day, pages))
-         })
-         .flat_map(|(year, month, day, pages)| {
-            pages.iter().map(move |&page| (year, month, day, page))
-         })
+impl<'e> View for Archive<'e> {
+   const VIEW_NAME: &'static str = "archive";
+
+   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
+      if self.0.is_empty() {
+         Ok("".into())
+      } else {
+         env.get_template(&view::template_for(self))?.render(self)
+      }
    }
 }
 
@@ -77,7 +78,7 @@ pub enum Error {
 }
 
 #[repr(transparent)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct Year {
    raw: u32,
 }
@@ -88,12 +89,12 @@ impl From<u32> for Year {
    }
 }
 
-type MonthMap<'p> = BTreeMap<Month, DayMap<'p>>;
+type MonthMap<'p> = IndexMap<Month, DayMap<'p>>;
 
-type DayMap<'p> = BTreeMap<Day, BTreeSet<&'p Post<'p>>>;
+type DayMap<'p> = IndexMap<Day, IndexSet<&'p Post<'p>>>;
 
 #[repr(transparent)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]
 pub struct Day {
    raw: u8,
 }

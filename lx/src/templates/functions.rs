@@ -1,13 +1,15 @@
 use std::{fmt, sync::Arc};
 
 use minijinja::{
-   State, Value,
+   State, Value, context,
    value::{Object, Rest, ViaDeserialize},
 };
+use simplelog::debug;
 
 use crate::{
    data::{config::Config, image::Image, item::Metadata},
    page::RootedPath,
+   templates::view::{self, View},
 };
 
 pub(crate) fn add_all(env: &mut minijinja::Environment<'_>) {
@@ -164,23 +166,27 @@ impl From<Label> for Value {
    }
 }
 
+impl View for Label {
+   const VIEW_NAME: &'static str = "twitter-label";
+
+   fn view(&self, env: &minijinja::Environment) -> Result<String, minijinja::Error> {
+      env.get_template(&view::template_for(self))?
+         .render(context! {
+            label1 => self.label1(),
+            label2 => self.label2(),
+            data1 => self.data1(),
+            data2 => self.data2(),
+         })
+   }
+}
+
 impl Object for Label {
-   fn call_method(
-      self: &Arc<Label>,
-      _state: &State,
-      name: &str,
+   fn call(
+      self: &Arc<Self>,
+      state: &State<'_, '_>,
       _args: &[Value],
    ) -> Result<Value, minijinja::Error> {
-      match name {
-         "label1" => Ok(self.label1().into()),
-         "data1" => Ok(self.data1().into()),
-         "label2" => Ok(self.label2().into()),
-         "data2" => Ok(self.data2().into()),
-         _ => Err(minijinja::Error::new(
-            minijinja::ErrorKind::UnknownMethod,
-            name.to_owned(),
-         )),
-      }
+      self.view(state.env()).map(Value::from)
    }
 }
 

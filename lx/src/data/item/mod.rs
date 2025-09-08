@@ -6,12 +6,17 @@ use std::{collections::HashMap, fmt, path::StripPrefixError};
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use lx_md::Markdown;
+use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
 
 use super::image::Image;
-use crate::page;
+use crate::{
+   archive::Archive,
+   page::{self, Item},
+   templates::view::{self, View},
+};
 
 use self::cascade::Cascade;
 
@@ -224,7 +229,15 @@ impl Qualifiers {
    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl View for Qualifiers {
+   const VIEW_NAME: &'static str = "qualifiers";
+
+   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
+      env.get_template(&view::template_for(self))?.render(self)
+   }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Book {
    title: Option<String>,
    author: Option<String>,
@@ -237,6 +250,24 @@ pub struct Book {
    cover: Option<Image>,
    link: Option<String>,
    pub review: Option<serial::Review>,
+}
+
+impl Book {
+   fn as_view<'a, I: IntoIterator<Item = &'a Item<'a>>>(
+      &'a self,
+      items: I,
+   ) -> Result<BookView<'a>, Box<dyn std::error::Error>> {
+      let archive = Archive::new(
+         items
+            .into_iter()
+            .filter(|item| item.data().book.as_ref().is_some_and(|book| book == self)),
+      )?;
+
+      Ok(BookView {
+         book: self,
+         archive,
+      })
+   }
 }
 
 impl From<serial::Book> for Book {
@@ -262,6 +293,29 @@ impl From<serial::Book> for Book {
          link,
          review,
       }
+   }
+}
+
+#[derive(Debug, Serialize)]
+struct BookView<'a> {
+   book: &'a Book,
+   archive: Archive<'a>,
+}
+
+impl<'a> View for BookView<'a> {
+   const VIEW_NAME: &'static str = "book";
+
+   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
+      let rendered_archive = self.archive.view(env)?;
+
+      let rendered = env
+         .get_template(Self::VIEW_NAME)?
+         .render(minijinja::context! {
+            book => self.book,
+            archive => rendered_archive,
+         })?;
+
+      Ok(rendered)
    }
 }
 

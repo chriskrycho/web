@@ -38,10 +38,7 @@
    <meta name="theme-color" content="#314557" />
 
    {% set label = label_for(data, content) %}
-   <meta name="twitter:label1" content="{{ label.label1() }}" />
-   <meta name="twitter:data1" content="{{ label.data1() }}" />
-   <meta name="twitter:label2" content="{{ label.label2() }}" />
-   <meta name="twitter:data2" content="{{ label.data2() }}" />
+   {{label()}}
 
    <script defer src="/vendor/lite-yt-embed.js"></script>
 </head>

@@ -1,0 +1,184 @@
+{%- macro entries(items, config, includeReplyViaEmail = true, includeThanksForReading = true) -%}
+   {# invalid without date #}
+   {%- if items is not undefined and items.length > 0 -%}
+      {%- for item in items | withValidDate | take(25) -%}
+         <entry>
+            {#- Invalid to send an item without title or description -#}
+            {% set url -%}
+            {%- if item.data.feedId -%}
+               {{item.data.feedId | absoluteUrl(config.url)}}
+            {%- else -%}
+               {{item.url | absoluteUrl(config.url)}}
+            {%- endif -%}
+            {%- endset -%}
+            <id>{{url}}</id>
+            {%- set entryTitle -%}
+            {%- if item.data.title -%}
+               {{item.data.title | striptags}}
+            {%- else -%}
+               {% localeDate item.date, 'yyyy.MM.dd.HHmm' -%}
+            {%- endif -%}
+            {%- endset -%}
+            <title type="html">[{{item.inputPath | toRootCollection}}] {{entryTitle}}</title>
+            {%- set updated -%}
+               {% if item.data.updated -%}
+               {{item.data.updated | isoDate}}
+               {%- else -%}
+                  {{item.date | isoDate}}
+               {%- endif -%}
+            {%- endset -%}
+            <published>{{item.date | isoDate}}</published>
+            <updated>{{updated}}</updated>
+            <link href='{{url}}'/>
+            {%- set summary -%}
+            {%- if item.data.summary -%}
+               {{-item.data.summary-}}
+            {%- elif item.data.book.review -%}
+               {{-item.data.book.review.rating | safe-}}:
+               {{item.data.book.review.summary | striptags(true) | safe-}}
+            {%- elif item.data.subtitle -%}
+               {{-item.data.subtitle-}}
+            {%- else -%}
+               {{-item.templateContent | excerpt -}}
+            {%- endif -%}
+            {%- endset %}
+            <summary type="html">{{- summary -}}</summary>
+            <content type="html">
+               <![CDATA[
+                  {%- if item.data.feedOnly -%}
+                  <p><em>Psst: this is a feed-only item which will <em>never</em> appear on the regular site!</em></p>
+                  {%- endif -%}
+
+                  {%- if item.data.subtitle -%}
+                     <p><i>{{- item.data.subtitle | safe -}}</i></p>
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.retraction -%}
+                     {{- item.data.qualifiers.retraction | safe -}}
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.audience -%}
+                     {{- item.data.qualifiers.audience | safe -}}
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.disclosure -%}
+                     {{- item.data.qualifiers.disclosure | safe -}}
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.context -%}
+                     {{- item.data.qualifiers.context | safe -}}
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.epistemic -%}
+                     {{- item.data.qualifiers.epistemic | safe -}}
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers.discusses -%}
+                     {{- item.data.qualifiers.discusses | safe -}}
+                  {%- endif -%}
+
+                  {%- if updates -%}
+                     <p><i>Meaningful changes since creating this page:</i></p>
+                     <ul>
+                        {%- for update in updates -%}
+                        <li>
+                           <i>{% localeDate update.at, 'MMMM d, yyyy' %}:</i>
+                           {{update.changes | safe}}
+                        </li>
+                        {%- endfor -%}
+                     </ul>
+                  {%- endif -%}
+
+                  {%- if item.data.qualifiers -%}
+                    <hr/>
+                  {%- endif -%}
+
+                  {%- if item.data.book and item.data.book.review -%}
+                     {%- set book = item.data.book -%}
+
+                     {%- set book_desc -%}
+                        {%- if book.link -%}
+                           <p><a href="{{book.link | safe}}"><cite>{{book.title | safe}}</cite></a>, {{book.author | safe}} ({{book.year | safe}})</p>
+                        {%- else -%}
+                           <p><cite>{{book.title | safe}}</cite>, {{book.author | safe}} ({{book.year | safe}})</p>
+                        {%- endif -%}
+                     {%- endset -%}
+
+                     {%- set book_review -%}
+                        {%- if book.review -%}
+                           <p><b>{{book.review.rating | safe}}:</b> {{book.review.summary | safe -}}</p>
+                        {%- endif -%}
+                     {%- endset -%}
+
+                     {%- if book.cover -%}
+                     <figure>
+                        <img src="{{book.cover | resolvedImage | safe}}" alt="cover art for {{book.title | safe}}" />
+                        <figcaption>
+                          {{-book_desc | safe-}}
+                          {{-book_review | safe-}}
+                        </figcaption>
+                     </figure>
+                     {%- else -%}
+                        {{-book_desc | safe-}}
+                        {{-book_review | safe-}}
+                     {%- endif -%}
+                  {%- endif -%}
+
+                  {{-item.templateContent | safe-}}
+
+                  {%- if item.related.length > 0 -%}
+                     <h2>Related:</h2>
+                     <ul class='section-content'>
+                     {%- for item in related %}
+                        <li>{{item | inlineMd | safe}}</li>
+                     {%- endfor -%}
+                     </ul>
+                  {%- endif -%}
+                  {%- if item.data.thanks -%}
+                  <hr/>
+                  <p><strong>Thanks:</strong> {{item.data.thanks | safe}}</p>
+                  {%- endif -%}
+                  <hr/>
+                  {%- if includeThanksForReading -%}
+                  <p>
+                     Thanks for reading my feed! Thoughts, comments, or questions?
+                     {% if includeReplyViaEmail -%}
+                        <a href="mailto:{{config.author.email}}?subject=Re%3A%20{{entryTitle | urlencode}}">Shoot me an email</a>
+                        {%- if item.data.discuss is defined -%}
+                           , or leave a comment on
+                           <a href="{{item.data.discuss.hn}}">Hacker News</a> or
+                           <a href="{{item.data.discuss.lobsters}}">lobste.rs</a>.
+                        {%- else -%}
+                           !
+                        {%- endif -%}
+                     {%- else -%}
+                        {%- if item.data.discuss is defined -%}
+                           Leave a comment on
+                           <a href="{{item.data.discuss.hn}}">Hacker News</a> or
+                           <a href="{{item.data.discuss.lobsters}}">lobste.rs</a>.
+                        {%- endif -%}
+                     {%- endif -%}
+                  </p>
+                  {%- endif -%}
+               ]]>
+            </content>
+            {%- include 'blocks/rss-author.njk' -%}
+            {#- <comments>TODO: Webmention!</comments> -#}
+            {%- for tag in item.data.tags -%}
+               <category term="{{tag}}"/>
+            {%- endfor -%}
+            {%- set image -%}
+            {%- if item.data.book and item.data.book.cover -%}
+               {{-item.data.book.cover | resolvedImage | safe-}}
+            {%- elif item.data.image -%}
+               {{-item.image | resolvedImage | safe-}}
+            {%- endif -%}
+            {%- endset -%}
+            {%- if image -%}
+               <link rel='enclosure' href='{{image | safe}}'/>
+               <media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="{{image | safe}}"/>
+            {%- endif -%}
+         </entry>
+      {%- endfor -%}
+   {%- endif -%}
+{%- endmacro -%}

@@ -47,11 +47,15 @@ pub mod serial {
    use std::{collections::HashMap, fmt::Display};
 
    use camino::{Utf8Path, Utf8PathBuf};
+   use minijinja::Environment;
    use normalize_path::NormalizePath as _;
    use serde::{Deserialize, Serialize};
    use thiserror::Error;
 
-   use crate::data::email::Email;
+   use crate::{
+      data::email::Email,
+      templates::view::{self, View},
+   };
 
    #[derive(Serialize, Deserialize, Debug)]
    pub struct Config {
@@ -116,6 +120,15 @@ pub mod serial {
    pub enum NavItem {
       Separator,
       Page { title: String, path: String },
+   }
+
+   // TODO: maybe move this elsewhere?
+   impl View for NavItem {
+      const VIEW_NAME: &'static str = "nav-item";
+
+      fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
+         env.get_template(&view::template_for(self))?.render(self)
+      }
    }
 
    #[derive(Error, Debug)]

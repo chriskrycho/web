@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// A resolved image URL.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Image {
    url: String,
 }

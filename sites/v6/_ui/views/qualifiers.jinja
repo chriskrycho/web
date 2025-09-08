@@ -1,0 +1,40 @@
+{% if audience %}
+<p class="qualifier">
+   <b><a href="https://v4.chriskrycho.com/2018/assumed-audiences.html">Assumed Audience</a>:</b>
+   {{audience}}
+</p>
+{% endif %}
+
+{% if epistemic %}
+<p class="qualifier">
+   <b><a href='https://v5.chriskrycho.com/journal/epistemic-status/'>Epistemic status</a>:</b>
+   {{epistemic}}
+</p>
+{% endif %}
+
+{% if context %}
+<p class="qualifier">
+<b>A bit of context:</b> {{context}}
+</p>
+{% endif %}
+
+{% if discusses %}
+<p class="qualifier">
+<b>Heads up:</b> this post directly discusses {{discusses}}
+</p>
+{% endif %}
+
+{% if disclosure %}
+<p class="qualifier">
+<b>Full disclosure:</b> {{disclosure}}
+</p>
+{% endif %}
+
+{% if retraction %}
+<p class="qualifier">
+   <b>Caveat lector:</b>
+   I have since retracted this (see <a href="{{retraction.url}}">{{retraction.title}}</a>),
+   but by standing policy I leave even work I have retracted publicly available as a
+   matter of record.
+</p>
+{% endif %}

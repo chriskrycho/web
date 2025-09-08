@@ -1,6 +1,6 @@
 use crate::data::{
    config::Config,
-   item::{self, cascade::Cascade, serial, Metadata, Slug},
+   item::{self, Metadata, Slug, cascade::Cascade, serial},
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
@@ -101,7 +101,7 @@ impl fmt::Display for Id {
 /// converted from Markdown to HTML and preprocessed with both the templating engine and
 /// my typography tooling. It is ready to render into the target layout template specified
 /// by its [`Metadata`] and then to print to the file system.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Page<'s> {
    pub id: Id,
 
@@ -204,7 +204,7 @@ impl Hash for Page<'_> {
    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Post<'e> {
    pub page: Page<'e>,
    pub date: DateTime<FixedOffset>,
@@ -212,7 +212,7 @@ pub struct Post<'e> {
 
 impl<'e> PartialOrd for Post<'e> {
    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-      Some(self.date.cmp(&other.date))
+      Some(self.cmp(other))
    }
 }
 

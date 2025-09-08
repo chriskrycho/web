@@ -148,14 +148,9 @@ pub fn build(
       return Err(Error::rendering_page(errors));
    }
 
-   // TODO: build taxonomies. Structurally, I *think* the best thing to do is filter on
-   //    this top-level `Archive`, which avoids having to do the sorting more than once.
+   // TODO: build taxonomies.
    // TODO: Identify the taxonomical system I want to use for the site(s)!
-
-   let _archive = Archive::new(items.iter().filter_map(|item| match item {
-      Item::Post(post) => Some(post),
-      _ => None,
-   }));
+   let _archive = Archive::new(&items);
 
    // TODO: this and the below are identical, except for the directory from which they
    // come. This is suggestive: maybe extract into a function for handling both, and
@@ -512,9 +507,9 @@ impl SiteFiles {
          config: in_dir.join("config.lx.yaml"),
          content,
          data,
-         templates: resolved_paths_for(&format!("{in_dir}/{}/*.jinja", *UI_DIR))?,
+         templates: resolved_paths_for(&format!("{in_dir}/{}/**/*.jinja", *UI_DIR))?,
          static_files: resolved_paths_for(&format!("{in_dir}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{in_dir}/_styles/*.css"))?,
+         styles: resolved_paths_for(&format!("{in_dir}/_styles/**/*.css"))?,
       };
 
       Ok(site_files)
@@ -544,7 +539,7 @@ struct SharedFiles {
 impl SharedFiles {
    fn in_dir(dir: &Utf8Path) -> Result<SharedFiles, Error> {
       let site_files = SharedFiles {
-         templates: resolved_paths_for(&format!("{dir}/{}/*.jinja", *UI_DIR))?,
+         templates: resolved_paths_for(&format!("{dir}/{}/**/*.jinja", *UI_DIR))?,
          static_files: resolved_paths_for(&format!("{dir}/_static/**/*"))?,
          styles: resolved_paths_for(&format!("{dir}/_styles/**/*.scss"))?,
       };

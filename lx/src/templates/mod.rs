@@ -1,6 +1,6 @@
 mod filters;
 mod functions;
-mod rendering;
+pub mod view;
 
 use std::io::Write;
 
