@@ -6,12 +6,17 @@ use std::{collections::HashMap, fmt, path::StripPrefixError};
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use lx_md::Markdown;
+use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
 
 use super::image::Image;
-use crate::page;
+use crate::{
+   archive::Archive,
+   page::{self, Item},
+   templates::view::View,
+};
 
 use self::cascade::Cascade;
 
@@ -224,7 +229,7 @@ impl Qualifiers {
    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Book {
    title: Option<String>,
    author: Option<String>,
@@ -262,6 +267,34 @@ impl From<serial::Book> for Book {
          link,
          review,
       }
+   }
+}
+
+// TODO: think about the right way to do this. Do I build a `BookView` or do I just do it
+//    like this? This way *will* work, but may make it harder to cache a result. Do I care
+//    about caching results? And: how *would* I cache results anyway? Hmm. Notably, either
+//    works! I can do whichever makes the most sense for a given type.
+impl View for Book {
+   const VIEW_NAME: &'static str = "book";
+
+   fn view<'a, I: IntoIterator<Item = &'a Item<'a>>>(
+      &self,
+      items: I,
+      env: &Environment,
+   ) -> String {
+      let archive = Archive::new(
+         items
+            .into_iter()
+            .filter(|item| item.data().book.as_ref().is_some_and(|book| book == self)),
+      );
+
+      env.get_template(Book::VIEW_NAME)
+         .expect("implement error handling")
+         .render(minijinja::context! {
+            book => minijinja::context! {},
+            // TODO: add context!
+         })
+         .expect("implement error handling")
    }
 }
 

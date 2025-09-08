@@ -148,14 +148,9 @@ pub fn build(
       return Err(Error::rendering_page(errors));
    }
 
-   // TODO: build taxonomies. Structurally, I *think* the best thing to do is filter on
-   //    this top-level `Archive`, which avoids having to do the sorting more than once.
+   // TODO: build taxonomies.
    // TODO: Identify the taxonomical system I want to use for the site(s)!
-
-   let _archive = Archive::new(items.iter().filter_map(|item| match item {
-      Item::Post(post) => Some(post),
-      _ => None,
-   }));
+   let _archive = Archive::new(&items);
 
    // TODO: this and the below are identical, except for the directory from which they
    // come. This is suggestive: maybe extract into a function for handling both, and

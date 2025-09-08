@@ -16,6 +16,10 @@ impl Object for NavItem {
    }
 }
 
+// TODO: *only* implement `call_method`; use the `View` trait for what this does? Or maybe
+//    _vice versa_? Right now a big upside to `View` is that I control it and so control
+//    what gets passed to it, including that I can use Jinja itself to render it rather
+//    than using string shenanigans.
 impl Object for Qualifiers {
    fn call_method(
       self: &Arc<Self>,

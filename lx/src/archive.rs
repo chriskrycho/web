@@ -1,20 +1,33 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+   collections::{BTreeMap, BTreeSet},
+   sync::Arc,
+};
 
 use chrono::{Datelike, Month};
+use minijinja::{Environment, value::Object};
 use thiserror::Error;
 
-use crate::page::Post;
+use crate::{
+   page::{Item, Post},
+   templates::view::{self, View},
+};
 
 /// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
 /// the posts.
+#[derive(Debug)]
 pub struct Archive<'p>(BTreeMap<Year, MonthMap<'p>>);
 
 impl<'e> Archive<'e> {
    /// Reference all pages in an unordered fashion.
    pub fn new(
-      posts: impl IntoIterator<Item = &'e Post<'e>>,
+      items: impl IntoIterator<Item = &'e Item<'e>>,
    ) -> Result<Archive<'e>, Error> {
       let mut year_map = BTreeMap::<Year, MonthMap<'e>>::new();
+
+      let posts = items.into_iter().filter_map(|item| match item {
+         Item::Page(_) => None,
+         Item::Post(post) => Some(post),
+      });
 
       for post in posts {
          let year = Year::from(post.date.year_ce().1);
@@ -52,6 +65,51 @@ impl<'e> Archive<'e> {
          .flat_map(|(year, month, day, pages)| {
             pages.iter().map(move |&page| (year, month, day, page))
          })
+   }
+
+   pub fn has_entries(&self) -> bool {
+      !self.0.is_empty()
+   }
+}
+
+impl<'e> View for Archive<'e> {
+   const VIEW_NAME: &'static str = "archive";
+
+   fn view<'a, I: IntoIterator<Item = &'a Item<'a>>>(
+      &self,
+      items: I,
+      env: &Environment,
+   ) -> String {
+      let template = env
+         .get_template(&view::template_for(self))
+         .expect("Add error handling!");
+
+      todo!()
+   }
+}
+
+impl<'e> Object for Archive<'e> {
+   fn call_method(
+      self: &Arc<Self>,
+      state: &minijinja::State<'_, '_>,
+      method: &str,
+      args: &[minijinja::Value],
+   ) -> Result<minijinja::Value, minijinja::Error> {
+      match method {
+         "has_entries" => Ok(self.has_entries().into()),
+
+         _ => Err(minijinja::Error::new(
+            minijinja::ErrorKind::UnknownMethod,
+            method.to_owned(),
+         )),
+      }
+   }
+
+   fn render(self: &Arc<Self>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+   where
+      Self: Sized + 'static,
+   {
+      todo!()
    }
 }
 

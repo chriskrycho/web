@@ -158,7 +158,7 @@ pub struct BibleRef {
    passage: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Review {
    rating: Rating,
    summary: String,
@@ -174,7 +174,7 @@ impl fmt::Display for Review {
 // but in fact it should be derived from the same text as its `Display`
 // implementation below. (A later enhancement: converting "****" etc. to it or
 // something cool like that.)
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 enum Rating {
    #[serde(rename = "Not recommended")]
    NotRecommended,

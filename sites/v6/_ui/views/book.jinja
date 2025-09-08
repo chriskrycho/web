@@ -1,0 +1,12 @@
+<section class='book'>
+
+</section>
+
+{#
+   Make it so `book.archive` can simply be rendered directly.
+
+   1. The `Archive` or `ArchiveView` type will need to `impl Object`.
+   2. The type should also wire in `views/archive.jinja`.
+   3. It will need to have an optional `context` to use for its CSS class list, I think?
+#}
+{{book.archive}}
