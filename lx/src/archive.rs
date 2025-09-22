@@ -5,7 +5,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::{
-   page::{Item, Post},
+   page::{Item, Post, PostLink},
    templates::view::{self, View},
 };
 
@@ -37,7 +37,7 @@ impl<'e> Archive<'e> {
 
          let month_map = year_map.entry(year).or_default();
          let day_map = month_map.entry(month).or_default();
-         day_map.entry(day).or_default().insert(post);
+         day_map.entry(day).or_default().insert(PostLink::from(post));
       }
 
       Ok(Archive(year_map))
@@ -91,7 +91,7 @@ impl From<u32> for Year {
 
 type MonthMap<'p> = IndexMap<Month, DayMap<'p>>;
 
-type DayMap<'p> = IndexMap<Day, IndexSet<&'p Post<'p>>>;
+type DayMap<'p> = IndexMap<Day, IndexSet<PostLink<'p>>>;
 
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Serialize)]

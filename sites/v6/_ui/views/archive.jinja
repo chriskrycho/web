@@ -1,0 +1,48 @@
+{# TODO: this doesn't need to be a macro, but can still be callable via `View`. #}
+{# TODO: this (pulled directly from v5) needs to be reworked a bit in terms of the new
+   data structures I am using here. The “view” for an `Archive` may end up being best
+   represented by something other than the `Archive` type’s own use of the `IndexMap`,
+   like an iterator over it or such?
+#}
+{#{% macro list(collection, idByCollection=false) %}#}
+<ul class='archive-list'>
+{%- for (year, months) in archive %}
+<li class='year'>
+   <div class='year-info sticky'>
+      <h2 class='year-title date'>{{year}}</h2>
+   </div>
+   <ul class='year-items'>
+   {%- for (month, days) in months %}
+      <li class='month'>
+         {# TODO: `month.name` is not yet callable. #}
+         <h3 class='month-title date'><span class='month-sticky'>{{month.name()}}</span></h3>
+         <ul class='month-items'>
+         {%- for (day, post_links) in days %}
+            <li class='day'>
+               {# TODO: `day.name` is not yet callable. #}
+               <h4 class='day-title date'><span class='day-sticky'>{{day.name()}}</span></h4>
+               <ul class='day-items'>
+               {%- for post_link in post_links %}
+                  <li class='item'>
+                     <h5 class='item-title'>{{post_link()}}</h5>
+                     {% if item.data.subtitle -%}
+                     <p class='item-subtitle'>{{item.data.subtitle | safe}}</p>
+                     {%- endif %}
+                     {%- if not item.data.title %}
+                     <article class='item-content article-content'>
+                        {{item.templateContent | safe}}
+                     </article>
+                     {% endif -%}
+                  </li>
+               {% endfor -%}
+               </ul>
+            </li>
+         {% endfor -%}
+         </ul>
+      </li>
+   {%- endfor -%}
+   </ul>
+</li>
+{% endfor -%}
+</ul>
+{#{% endmacro %}#}

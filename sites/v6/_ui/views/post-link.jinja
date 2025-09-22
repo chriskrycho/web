@@ -1,0 +1,37 @@
+{% set linkTitle -%}
+   {%- if item.data.link -%}
+      direct link to item
+   {%- else -%}
+      item permalink
+   {%- endif -%}
+{%- endset %}
+
+{# TODO: require config passed to the archive call? #}
+<a href='{{url_for(slug, config)}}' class='item-permalink' title='{{anchor_title}}'>
+{%- if item.data.title -%}
+   <span class='item-title__text'>{{-item.data.title | safe-}}</span>
+   {%- if item.data.link -%}
+      <span class='item-title-arrow'>∞</span>
+   {%- endif -%}
+{%- else -%}
+   <span class='date item-title__date'>
+      {{item.date}}
+      {#{%- localeDate item.date, 'HH:mm' -%}#}
+   </span>
+   {%- if item.data.link -%}
+      <span class='item-title-arrow'>∞</span>
+   {%- else %}
+      ❈
+   {%- endif -%}
+{%- endif -%}
+</a>
+
+{# TODO: figure out how to render this more nicely? #}
+{%- if item.data.link -%}
+   —<a href='{{item.url}}' title='item permalink'>❈</a>
+{%- endif -%}
+
+{%- if idByCollection %}
+   {%- set collection = item.inputPath | toRootCollection -%}
+   <span class='item-title__collection'>—<a href="/{{collection}}/">{{collection | upper}}</a></span>
+{% endif -%}
