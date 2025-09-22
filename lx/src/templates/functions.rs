@@ -112,6 +112,12 @@ enum Label {
       duration: String,
       instrumentation: String,
    },
+   Custom {
+      label1: String,
+      data1: String,
+      label2: String,
+      data2: String,
+   },
 }
 
 impl Label {
@@ -131,10 +137,11 @@ impl Label {
 
    // Might later decide to do something more meaningful than Author/Composer
    // here given it’s pretty obviously just me on my own site?
-   pub fn label1(&self) -> &'static str {
+   pub fn label1(&self) -> &str {
       match self {
          Label::Post { .. } => "Author",
          Label::Work { .. } => "Instrumentation",
+         Label::Custom { label1, .. } => label1.as_str(),
       }
    }
 
@@ -144,13 +151,15 @@ impl Label {
          Label::Work {
             instrumentation, ..
          } => instrumentation.to_owned(),
+         Label::Custom { data1, .. } => data1.clone(),
       }
    }
 
-   pub fn label2(&self) -> &'static str {
+   pub fn label2(&self) -> &str {
       match self {
          Label::Post { .. } => "Length",
          Label::Work { .. } => "Duration",
+         Label::Custom { label2, .. } => label2.as_str(),
       }
    }
 
@@ -158,6 +167,7 @@ impl Label {
       match self {
          Label::Post { length, .. } => length.to_string(),
          Label::Work { duration, .. } => duration.clone(),
+         Label::Custom { data2, .. } => data2.clone(),
       }
    }
 }
