@@ -34,7 +34,7 @@ pub struct Metadata {
 
    pub book: Option<Book>,
    pub featured: bool,
-   pub image: Option<Image>, // TODO: make it `Image`, not `Option`, and generate it .
+   pub image: Option<Image>, // TODO: make it `Image`, not `Option`, and generate it.
    pub qualifiers: Qualifiers,
    pub series: Option<serial::Series>,
    pub subscribe: Option<serial::Subscribe>,
