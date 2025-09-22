@@ -19,6 +19,9 @@ pub struct Item {
    pub subtitle: Option<String>,
    pub summary: Option<String>,
    pub date: Option<DateTime<FixedOffset>>,
+   /// For link items, the URL to the “target” post.
+   pub link: Option<String>,
+   /// Relative path to specify a different location from the source location.
    pub permalink: Option<String>,
    pub qualifiers: Option<Qualifiers>,
    /// When was the item first created? Useful for distinguishing between item creation

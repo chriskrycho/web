@@ -35,6 +35,9 @@ pub struct Metadata {
    pub book: Option<Book>,
    pub featured: bool,
    pub image: Option<Image>, // TODO: make it `Image`, not `Option`, and generate it.
+
+   /// For link items, the URL to the “target” post.
+   pub link: Option<String>,
    pub qualifiers: Qualifiers,
    pub series: Option<serial::Series>,
    pub subscribe: Option<serial::Subscribe>,
@@ -80,6 +83,7 @@ impl Metadata {
          title,
          slug: Slug::new(permalink.as_deref(), &source.path)?,
          subtitle: item.subtitle.map(render).transpose()?,
+         link: item.link, // I don’t *think* this makes sense to have in the cascade.
          layout: item
             .layout
             .or(cascade.layout(dir))
@@ -169,7 +173,7 @@ pub struct Update {
    pub changes: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum Slug {
    Permalink(String),
    FromPath(Utf8PathBuf),
