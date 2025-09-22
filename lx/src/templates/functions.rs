@@ -8,7 +8,7 @@ use simplelog::debug;
 
 use crate::{
    data::{config::Config, image::Image, item::Metadata},
-   page::RootedPath,
+   page::{self, RootedPath},
    templates::view::{self, View},
 };
 
@@ -105,6 +105,7 @@ fn label_for(
 #[derive(Debug, serde::Serialize)]
 enum Label {
    Post {
+      tags: Vec<String>,
       length: ApproximateLength,
    },
    Work {
@@ -122,7 +123,8 @@ impl Label {
          }
       } else {
          Label::Post {
-            length: content.into(),
+            length: ApproximateLength::from(content),
+            tags: page_data.tags,
          }
       }
    }
@@ -138,7 +140,7 @@ impl Label {
 
    pub fn data1(&self) -> String {
       match self {
-         Label::Post { .. } => "Chris Krycho".into(),
+         Label::Post { tags, .. } => tags.join(","),
          Label::Work {
             instrumentation, ..
          } => instrumentation.to_owned(),
@@ -154,7 +156,7 @@ impl Label {
 
    pub fn data2(&self) -> String {
       match self {
-         Label::Post { length } => length.to_string(),
+         Label::Post { length, .. } => length.to_string(),
          Label::Work { duration, .. } => duration.clone(),
       }
    }
