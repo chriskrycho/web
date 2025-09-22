@@ -1,4 +1,3 @@
-use log::debug;
 use minijinja::Environment;
 use serde::Serialize;
 
