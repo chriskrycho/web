@@ -182,13 +182,12 @@ impl View for Label {
    const VIEW_NAME: &'static str = "twitter-label";
 
    fn view(&self, env: &minijinja::Environment) -> Result<String, minijinja::Error> {
-      env.get_template(&view::template_for(self))?
-         .render(context! {
-            label1 => self.label1(),
-            label2 => self.label2(),
-            data1 => self.data1(),
-            data2 => self.data2(),
-         })
+      env.get_template(&Self::template())?.render(context! {
+         label1 => self.label1(),
+         label2 => self.label2(),
+         data1 => self.data1(),
+         data2 => self.data2(),
+      })
    }
 }
 

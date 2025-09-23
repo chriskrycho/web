@@ -51,7 +51,7 @@ impl<'e> View for Archive<'e> {
       if self.0.is_empty() {
          Ok("".into())
       } else {
-         env.get_template(&view::template_for(self))?.render(self)
+         env.get_template(&Self::template())?.render(self)
       }
    }
 }

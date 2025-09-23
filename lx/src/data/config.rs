@@ -127,7 +127,7 @@ pub mod serial {
       const VIEW_NAME: &'static str = "nav-item";
 
       fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
-         env.get_template(&view::template_for(self))?.render(self)
+         env.get_template(&Self::template())?.render(self)
       }
    }
 
