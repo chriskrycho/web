@@ -52,10 +52,7 @@ pub mod serial {
    use serde::{Deserialize, Serialize};
    use thiserror::Error;
 
-   use crate::{
-      data::email::Email,
-      templates::view::{self, View},
-   };
+   use crate::{data::email::Email, templates::component::Component};
 
    #[derive(Serialize, Deserialize, Debug)]
    pub struct Config {
@@ -123,7 +120,7 @@ pub mod serial {
    }
 
    // TODO: maybe move this elsewhere?
-   impl View for NavItem {
+   impl Component for NavItem {
       const VIEW_NAME: &'static str = "nav-item";
 
       fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {

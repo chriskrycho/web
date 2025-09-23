@@ -1,7 +1,7 @@
 use minijinja::Environment;
 use serde::Serialize;
 
-pub(crate) trait View: Serialize + Sized {
+pub(crate) trait Component: Serialize + Sized {
    const VIEW_NAME: &'static str;
 
    fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
@@ -9,6 +9,6 @@ pub(crate) trait View: Serialize + Sized {
    }
 
    fn template() -> String {
-      format!("views/{}.jinja", Self::VIEW_NAME)
+      format!("components/{}.jinja", Self::VIEW_NAME)
    }
 }

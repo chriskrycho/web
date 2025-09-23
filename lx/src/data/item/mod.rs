@@ -15,7 +15,7 @@ use super::image::Image;
 use crate::{
    archive::Archive,
    page::{self, Item},
-   templates::view::{self, View},
+   templates::component::Component,
 };
 
 use self::cascade::Cascade;
@@ -233,7 +233,7 @@ impl Qualifiers {
    }
 }
 
-impl View for Qualifiers {
+impl Component for Qualifiers {
    const VIEW_NAME: &'static str = "qualifiers";
 
    fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
@@ -306,7 +306,7 @@ struct BookView<'a> {
    archive: Archive<'a>,
 }
 
-impl<'a> View for BookView<'a> {
+impl<'a> Component for BookView<'a> {
    const VIEW_NAME: &'static str = "book";
 
    fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {

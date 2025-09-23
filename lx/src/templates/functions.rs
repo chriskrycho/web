@@ -9,7 +9,7 @@ use simplelog::debug;
 use crate::{
    data::{config::Config, image::Image, item::Metadata},
    page::{self, RootedPath},
-   templates::view::{self, View},
+   templates::component::{self, Component},
 };
 
 pub(crate) fn add_all(env: &mut minijinja::Environment<'_>) {
@@ -178,7 +178,7 @@ impl From<Label> for Value {
    }
 }
 
-impl View for Label {
+impl Component for Label {
    const VIEW_NAME: &'static str = "twitter-label";
 
    fn view(&self, env: &minijinja::Environment) -> Result<String, minijinja::Error> {

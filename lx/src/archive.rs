@@ -5,8 +5,8 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::{
-   page::{Item, Post, PostLink},
-   templates::view::{self, View},
+   page::{Item, PostLink},
+   templates::component::Component,
 };
 
 /// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
@@ -44,7 +44,7 @@ impl<'e> Archive<'e> {
    }
 }
 
-impl<'e> View for Archive<'e> {
+impl<'e> Component for Archive<'e> {
    const VIEW_NAME: &'static str = "archive";
 
    fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {

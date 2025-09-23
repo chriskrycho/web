@@ -3,7 +3,7 @@ use crate::{
       config::Config,
       item::{self, Metadata, Slug, cascade::Cascade, serial},
    },
-   templates::view::View,
+   templates::component::Component,
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
@@ -254,7 +254,7 @@ impl Object for PostLink<'_> {
    }
 }
 
-impl<'e> View for PostLink<'e> {
+impl<'e> Component for PostLink<'e> {
    const VIEW_NAME: &'static str = "post-link";
 }
 
