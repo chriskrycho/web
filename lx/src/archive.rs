@@ -46,14 +46,6 @@ impl<'e> Archive<'e> {
 
 impl<'e> Component for Archive<'e> {
    const VIEW_NAME: &'static str = "archive";
-
-   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
-      if self.0.is_empty() {
-         Ok("".into())
-      } else {
-         env.get_template(&Self::template())?.render(self)
-      }
-   }
 }
 
 #[allow(dead_code)]

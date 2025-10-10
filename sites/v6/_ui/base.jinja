@@ -14,6 +14,11 @@
       {% block feeds %}{% endblock %}
   </head>
   <body>
+      <nav>
+         {% for nav_item in config.nav %}
+            {{nav_item()}}
+         {% endfor %}
+      </nav>
       <main>
       {% block body %}
          {{ content }}

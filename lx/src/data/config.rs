@@ -44,10 +44,10 @@ pub struct Error {
 pub use serial::NavItem;
 
 pub mod serial {
-   use std::{collections::HashMap, fmt::Display};
+   use std::{collections::HashMap, fmt::Display, sync::Arc};
 
    use camino::{Utf8Path, Utf8PathBuf};
-   use minijinja::Environment;
+   use minijinja::{Environment, State, Value, value::Object};
    use normalize_path::NormalizePath as _;
    use serde::{Deserialize, Serialize};
    use thiserror::Error;
@@ -119,12 +119,28 @@ pub mod serial {
       Page { title: String, path: String },
    }
 
-   // TODO: maybe move this elsewhere?
+   // NOTE(2025-10-09): this currently never gets hit when accessing via a template
+   //    invocation that goes through `Config`, because `Config` and `NavItem` both
+   //    implement `Serialize`, and so by the time the renderer is working with the
+   //    `Config::nav` data, it is working with it as the *serialized* version of it,
+   //    which means it never actually has a chance to see the `Component` version of it.
+   //    In practice, this likely means that I need to get rid of the `Serialize` bound on
+   //    `Component` and require custom rendering at each site (ugh) or find some other
+   //    way to express these kinds of relations. _Le sigh_.
+   //
+   // TODO: also maybe move this elsewhere?
    impl Component for NavItem {
       const VIEW_NAME: &'static str = "nav-item";
+   }
 
-      fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
-         env.get_template(&Self::template())?.render(self)
+   impl Object for NavItem {
+      fn call(
+         self: &Arc<Self>,
+         state: &State<'_, '_>,
+         _args: &[Value],
+      ) -> Result<Value, minijinja::Error> {
+         println!("got here?");
+         self.view(state.env()).map(Value::from)
       }
    }
 
