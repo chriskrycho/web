@@ -6,7 +6,6 @@ use std::{collections::HashMap, fmt, path::StripPrefixError};
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use lx_md::Markdown;
-use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
@@ -15,7 +14,6 @@ use super::image::Image;
 use crate::{
    archive::Archive,
    page::{self, Item},
-   templates::component::Component,
 };
 
 use self::cascade::Cascade;
@@ -233,14 +231,6 @@ impl Qualifiers {
    }
 }
 
-impl Component for Qualifiers {
-   const VIEW_NAME: &'static str = "qualifiers";
-
-   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
-      env.get_template(&Self::template())?.render(self)
-   }
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Book {
    title: Option<String>,
@@ -304,23 +294,6 @@ impl From<serial::Book> for Book {
 struct BookView<'a> {
    book: &'a Book,
    archive: Archive<'a>,
-}
-
-impl<'a> Component for BookView<'a> {
-   const VIEW_NAME: &'static str = "book";
-
-   fn view(&self, env: &Environment) -> Result<String, minijinja::Error> {
-      let rendered_archive = self.archive.view(env)?;
-
-      let rendered = env
-         .get_template(Self::VIEW_NAME)?
-         .render(minijinja::context! {
-            book => self.book,
-            archive => rendered_archive,
-         })?;
-
-      Ok(rendered)
-   }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

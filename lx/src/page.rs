@@ -1,17 +1,13 @@
-use crate::{
-   data::{
-      config::Config,
-      item::{self, Metadata, Slug, cascade::Cascade, serial},
-   },
-   templates::component::Component,
+use crate::data::{
+   config::Config,
+   item::{self, Metadata, Slug, cascade::Cascade, serial},
 };
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use json_feed::Author;
 use lx_md::{self, Markdown, RenderError, ToRender};
-use minijinja::{Environment, State, Value, context, value::Object};
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, sync::Arc};
+use std::cmp::Ordering;
 use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
 use thiserror::Error;
 use uuid::Uuid;
@@ -242,20 +238,6 @@ impl<'e> From<&'e Post<'e>> for PostLink<'e> {
          slug: &value.page.data.slug,
       }
    }
-}
-
-impl Object for PostLink<'_> {
-   fn call(
-      self: &Arc<Self>,
-      state: &State<'_, '_>,
-      _args: &[Value],
-   ) -> Result<Value, minijinja::Error> {
-      self.view(state.env()).map(Value::from)
-   }
-}
-
-impl<'e> Component for PostLink<'e> {
-   const VIEW_NAME: &'static str = "post-link";
 }
 
 #[derive(Error, Debug)]

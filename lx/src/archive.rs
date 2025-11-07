@@ -1,13 +1,9 @@
 use chrono::{Datelike, Month};
 use indexmap::{IndexMap, IndexSet};
-use minijinja::Environment;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{
-   page::{Item, PostLink},
-   templates::component::Component,
-};
+use crate::page::{Item, PostLink};
 
 /// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
 /// the posts.
@@ -42,10 +38,6 @@ impl<'e> Archive<'e> {
 
       Ok(Archive(year_map))
    }
-}
-
-impl<'e> Component for Archive<'e> {
-   const VIEW_NAME: &'static str = "archive";
 }
 
 #[allow(dead_code)]

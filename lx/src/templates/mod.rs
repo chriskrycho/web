@@ -1,4 +1,3 @@
-pub mod component;
 mod filters;
 mod functions;
 

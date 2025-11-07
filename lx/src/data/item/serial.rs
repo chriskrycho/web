@@ -11,10 +11,7 @@ use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-   data::{image::serial::Image, item::nice_list},
-   templates::component::Component,
-};
+use crate::data::{image::serial::Image, item::nice_list};
 
 #[derive(Deserialize, Debug, Default)]
 pub struct Item {
@@ -92,10 +89,6 @@ pub struct Qualifiers {
    pub discusses: Vec<String>,
    pub disclosure: Option<String>,
    pub retraction: Option<Retraction>,
-}
-
-impl Component for Qualifiers {
-   const VIEW_NAME: &'static str = "qualifiers";
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
