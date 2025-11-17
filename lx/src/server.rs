@@ -24,7 +24,6 @@ use futures::{
    future::{self, Either},
 };
 use log::{debug, error, info, log_enabled, trace, warn};
-use lx_md::Markdown;
 use notify::RecursiveMode;
 use notify_debouncer_full::DebouncedEvent;
 use serde::Serialize;
@@ -58,11 +57,6 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
    // would be to do this same basic wrapping in `main` but only for this.
    let rt = Runtime::new().map_err(|e| Error::Io { source: e })?;
 
-   // This does not presently change for any reason. In principle, it *could*, e.g. if I
-   // wanted to reload it when config changed to support reloading syntaxes. For now,
-   // though, this is sufficient.
-   let md = Markdown::new(None);
-
    // 1. Run an initial build.
    // 2. Create a watcher on the *input* directory, *not* the output directory.
    // 3. When the watcher signals a change, use that to trigger a new *build*, not a
@@ -77,7 +71,7 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
 
    // TODO: consider how to loop on rebuild and changes and *not serve* until there has
    // been a successful build.
-   let first_build = build(&site_dir, &config, &md, build::Mode::Serve);
+   let first_build = build(&site_dir, &config, build::Mode::Serve);
    if let Err(e) = first_build {
       eprintln!("Initial build failed: {e:?}");
    }
@@ -95,7 +89,6 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
    let rebuild_handle = rt.spawn(rebuild(
       Arc::new(site_dir),
       Arc::new(config),
-      Arc::new(md),
       change_tx,
       rebuild_tx.clone(),
    ));
@@ -119,7 +112,6 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
 async fn rebuild(
    site_dir: Arc<Canonicalized>,
    site_config: Arc<Config>,
-   md: Arc<Markdown>,
    change: Sender<Change>,
    rebuild_tx: Sender<Rebuild>,
 ) -> Result<(), Error> {
@@ -150,11 +142,9 @@ async fn rebuild(
 
       let site_dir = Arc::clone(&site_dir);
       let site_config = Arc::clone(&site_config);
-      let md = Arc::clone(&md);
 
-      let rebuild_task = task::spawn_blocking(move || {
-         build(&site_dir, &site_config, &md, build::Mode::Serve)
-      });
+      let rebuild_task =
+         task::spawn_blocking(move || build(&site_dir, &site_config, build::Mode::Serve));
 
       let rebuild = match rebuild_task.await {
          Ok(build_result) => match build_result.map_err(Error::from) {

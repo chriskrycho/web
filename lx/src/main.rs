@@ -1,7 +1,7 @@
 //! Run the static site generator.
 
-use std::fs;
 use std::io::{BufReader, Read, Write};
+use std::{fmt, fs};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
@@ -11,8 +11,6 @@ use log::info;
 use simplelog::{
    ColorChoice, Config, ConfigBuilder, LevelFilter, TermLogger, TerminalMode,
 };
-use syntect::highlighting::ThemeSet;
-use syntect::html::{ClassStyle, css_for_theme_with_class_style};
 use thiserror::Error;
 
 mod archive;
@@ -114,23 +112,29 @@ fn main() -> Result<(), anyhow::Error> {
       }
 
       Command::Theme(Theme::List) => {
-         let ThemeSet { themes } = ThemeSet::load_defaults();
+         let themes = arborium::theme::builtin::all();
+
          println!("Available themes:");
-         for theme_name in themes.keys() {
-            println!("\t{theme_name}");
+         for theme in themes {
+            println!("\t{}", theme.name);
          }
          Ok(())
       }
 
-      Command::Theme(Theme::Emit { name, path, force }) => {
-         let theme_set = ThemeSet::load_defaults();
-         let theme = theme_set
-            .themes
-            .get(&name)
+      Command::Theme(Theme::Emit {
+         name,
+         path,
+         force,
+         mode,
+      }) => {
+         let themes = arborium::theme::builtin::all();
+
+         let theme = themes
+            .iter()
+            .find(|t| t.name == name)
             .ok_or_else(|| Error::InvalidThemeName(name))?;
 
-         let css = css_for_theme_with_class_style(theme, ClassStyle::Spaced)
-            .map_err(|source| Error::SyntectCSS { source })?;
+         let css = theme.to_css(&format!(".{mode}, :root"));
 
          let dest_cfg = path
             .map(|path| DestCfg::Path { buf: path, force })
@@ -265,9 +269,6 @@ enum Error {
    #[error("invalid theme name: {0}")]
    InvalidThemeName(String),
 
-   #[error(transparent)]
-   SyntectCSS { source: syntect::Error },
-
    #[error("IO (for {target})")]
    Io {
       target: String,
@@ -360,7 +361,26 @@ enum Theme {
       /// Overwrite any existing file at the path specified.
       #[arg(long, requires = "path")]
       force: bool,
+
+      #[clap(value_enum)]
+      #[arg(short, long)]
+      mode: Mode,
    },
+}
+
+#[derive(Debug, PartialEq, Clone, clap::ValueEnum)]
+enum Mode {
+   Light,
+   Dark,
+}
+
+impl fmt::Display for Mode {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      f.write_str(match self {
+         Mode::Light => "light",
+         Mode::Dark => "dark",
+      })
+   }
 }
 
 #[derive(Args, Debug, PartialEq, Clone)]

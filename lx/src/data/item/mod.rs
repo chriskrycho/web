@@ -5,7 +5,6 @@ use std::{collections::HashMap, fmt, path::StripPrefixError};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
-use lx_md::Markdown;
 use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
@@ -53,7 +52,6 @@ impl Metadata {
       source: &page::Source,
       cascade: &Cascade,
       default_template_name: String,
-      md: &Markdown,
    ) -> Result<(Self, Option<DateTime<FixedOffset>>), Error> {
       let permalink = item.permalink.map(|permalink| {
          permalink
@@ -75,7 +73,7 @@ impl Metadata {
          .or(item.title)
          .ok_or_else(|| Error::MissingRequiredField { name: "title" })?;
 
-      let render = |s: String| Rendered::markdown(&s, md);
+      let render = |s: String| Rendered::markdown(&s);
 
       let metadata = Metadata {
          title,
@@ -149,8 +147,10 @@ pub struct Rendered {
 }
 
 impl Rendered {
-   fn markdown(src: &str, md: &Markdown) -> Result<Rendered, Error> {
-      md.render(src, |s| Ok(s.to_string()))
+   fn markdown(src: &str) -> Result<Rendered, Error> {
+      // TODO: can I avoid instantiating this like this? Hmmm.
+      let mut highlighter = arborium::Highlighter::new();
+      lx_md::render(src, &mut highlighter, |s| Ok(s.to_string()))
          .map(|(_, rendered)| Rendered {
             source: src.to_owned(),
             html: rendered.html().to_string(),

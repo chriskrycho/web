@@ -17,9 +17,10 @@ pub fn convert(
       .read_to_string(&mut src)
       .map_err(|source| Error::ReadBuffer { source })?;
 
-   let (meta, rendered) = lx_md::Markdown::new(None)
-      .render(&src, |s| Ok(s.to_string()))
-      .map_err(Error::from)?;
+   let (meta, rendered) = lx_md::render(&src, &mut arborium::Highlighter::new(), |s| {
+      Ok(s.to_string())
+   })
+   .map_err(Error::from)?;
 
    if include.wrapping_html {
       write(

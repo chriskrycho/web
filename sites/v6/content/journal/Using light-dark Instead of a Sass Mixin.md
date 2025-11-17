@@ -16,7 +16,7 @@ thanks: >
 
 Over the past few years, <abbr title="cascading style sheets">CSS</abbr> has improved so much that I do not need almost any of the capabilities provided by Sass/<abbr title="sassy cascading style sheets">SCSS</abbr>. One of the few places I have continued to use it is writing a `@mixin` to handle light and dark color schemes on my website, so that I can correctly support both the user’s system-level preference (with the `prefers-color-scheme` media query) and their manual preference via the tiny “settings” panel this site supplies in the upper right corner. The settings panel simply sets a top-level class on the `html` element. To support both of these, though, you historically need separate declarations:
 
-```css
+```scss
 // Assume the actual colors are defined elsewhere!
 @mixin light {
   --fg: var(--gray-0);

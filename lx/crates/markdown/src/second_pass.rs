@@ -1,9 +1,8 @@
 use std::error;
 
-use log::error;
+use arborium::Highlighter;
+use log::{debug, error};
 use pulldown_cmark::{CodeBlockKind, CowStr, Tag, TagEnd};
-use syntect::html::{ClassStyle, ClassedHTMLGenerator};
-use syntect::parsing::SyntaxSet;
 use thiserror::Error;
 
 use super::FootnoteDefinitions;
@@ -16,8 +15,8 @@ use super::first_pass;
 /// 3. Performing any template-language-type rewriting of text nodes.
 struct State<'e, 's> {
    footnote_definitions: FootnoteDefinitions<'e>,
-   syntax_set: &'s SyntaxSet,
-   code_block: Option<CodeBlock<'e, 's>>,
+   highlighter: &'s mut Highlighter,
+   code_block: Option<CodeBlock<'e>>,
    events: Vec<pulldown_cmark::Event<'e>>,
    emitted_definitions: Vec<(CowStr<'e>, Vec<pulldown_cmark::Event<'e>>)>,
 }
@@ -33,7 +32,10 @@ pub enum Error {
    UnhandledFootnoteReference(String),
 
    #[error("syntax highlighting failure")]
-   BadSyntaxLine { source: syntect::Error },
+   SyntaxHighlighting {
+      #[from]
+      source: arborium::Error,
+   },
 
    #[error("bad LaTeX input")]
    BadLatex {
@@ -50,13 +52,13 @@ pub enum Error {
 
 pub(super) fn second_pass<'e>(
    footnote_definitions: FootnoteDefinitions<'e>,
-   syntax_set: &SyntaxSet,
+   highlighter: &mut Highlighter,
    events: Vec<first_pass::Event<'e>>,
    rewrite: impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
 ) -> Result<impl Iterator<Item = pulldown_cmark::Event<'e>>, Error> {
    let mut state = State {
       footnote_definitions,
-      syntax_set,
+      highlighter,
       code_block: None,
       events: vec![],
       emitted_definitions: vec![],
@@ -65,7 +67,7 @@ pub(super) fn second_pass<'e>(
    for event in events {
       // If I ever extract/generalize this, I will want to use some kind of log level
       // handling instead of just always emitting the error.
-      if let Some(warning) = state.handle(event, &rewrite)? {
+      if let HandleOutput::Weird(warning) = state.handle(event, &rewrite)? {
          error!("{warning}");
       }
    }
@@ -73,14 +75,17 @@ pub(super) fn second_pass<'e>(
    Ok(state.into_iter())
 }
 
+enum HandleOutput {
+   Normal,
+   Weird(String),
+}
+
 impl<'e> State<'e, '_> {
-   /// Returns `Some(String)` when it could successfully emit an event, but there was
-   /// something unexpected about it, e.g. a footnote with a missing definition.
    fn handle(
       &mut self,
       event: first_pass::Event<'e>,
       rewrite: &impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
-   ) -> Result<Option<String>, Error> {
+   ) -> Result<HandleOutput, Error> {
       use pulldown_cmark::Event::*;
 
       match event {
@@ -89,8 +94,8 @@ impl<'e> State<'e, '_> {
                // We do *not* want to rewrite text in code blocks!
                match self.code_block {
                   Some(ref mut code_block) => {
-                     code_block.highlight(&text)?;
-                     Ok(None)
+                     code_block.highlight(text, self.highlighter)?;
+                     Ok(HandleOutput::Normal)
                   }
                   None => {
                      let rewritten =
@@ -99,20 +104,20 @@ impl<'e> State<'e, '_> {
                            original: text.to_string(),
                         })?;
                      self.events.push(Html(rewritten.into()));
-                     Ok(None)
+                     Ok(HandleOutput::Normal)
                   }
                }
             }
 
             Start(Tag::CodeBlock(kind)) => {
-               self.code_block = Some(CodeBlock::start(kind, self.syntax_set));
-               Ok(None)
+               self.code_block = CodeBlock::start(kind);
+               Ok(HandleOutput::Normal)
             }
 
             End(TagEnd::CodeBlock) => match self.code_block.take() {
                Some(code_block) => {
                   self.events.append(&mut code_block.end());
-                  Ok(None)
+                  Ok(HandleOutput::Normal)
                }
                None => Err(Error::FinishedNonStartedCodeBlock),
             },
@@ -123,7 +128,7 @@ impl<'e> State<'e, '_> {
                   latex2mathml::DisplayStyle::Block,
                )?;
                self.events.push(Html(math.into()));
-               Ok(None)
+               Ok(HandleOutput::Normal)
             }
 
             InlineMath(content) => {
@@ -132,7 +137,7 @@ impl<'e> State<'e, '_> {
                   latex2mathml::DisplayStyle::Inline,
                )?;
                self.events.push(Html(math.into()));
-               Ok(None)
+               Ok(HandleOutput::Normal)
             }
 
             // If we find a footnote reference here, something has gone wrong: we should
@@ -144,7 +149,7 @@ impl<'e> State<'e, '_> {
             // Everything else can just be emitted exactly as is.
             other => {
                self.events.push(other.clone());
-               Ok(None)
+               Ok(HandleOutput::Normal)
             }
          },
 
@@ -159,11 +164,11 @@ impl<'e> State<'e, '_> {
                );
 
                self.events.push(Html(link.into()));
-               Ok(None)
+               Ok(HandleOutput::Normal)
             } else {
                let event = Text(format!("[^{name}]").into());
                self.events.push(event);
-               Ok(Some(format!(
+               Ok(HandleOutput::Weird(format!(
                   "Missing definition for footnote labeled '{name}'"
                )))
             }
@@ -233,154 +238,65 @@ impl<'e> IntoIterator for State<'e, '_> {
    }
 }
 
-#[derive(Debug)]
-struct CodeBlock<'e, 's> {
-   highlighting: Highlighting<'s>,
-   syntax_set: Option<&'s SyntaxSet>,
+struct CodeBlock<'e> {
+   name: CowStr<'e>,
    events: Vec<pulldown_cmark::Event<'e>>,
 }
 
-impl<'c, 's> CodeBlock<'c, 's> {
+impl<'e> CodeBlock<'e> {
    /// Start highlighting a code block.
-   fn start(kind: CodeBlockKind, syntax_set: &'s SyntaxSet) -> Self {
+   fn start(kind: CodeBlockKind<'e>) -> Option<Self> {
       match kind {
          CodeBlockKind::Fenced(name) => {
-            let found = syntax_set.find_syntax_by_token(name.as_ref());
-            let (html, highlighting) = if let Some(syntax) = found {
-               (
-                  pulldown_cmark::Event::Html(
-                     format!("<pre><code class='{}'>", syntax.name).into(),
-                  ),
-                  Highlighting::KnownSyntax(ClassedHTMLGenerator::new_with_class_style(
-                     syntax,
-                     syntax_set,
-                     ClassStyle::Spaced,
-                  )),
-               )
-            } else {
-               (
-                  pulldown_cmark::Event::Html("<pre><code>".into()),
-                  Highlighting::UnknownSyntax,
-               )
-            };
-
-            CodeBlock {
-               highlighting,
-               syntax_set: Some(syntax_set),
-               events: vec![html],
-            }
+            let leading_html = pulldown_cmark::Event::Html(
+               format!(r#"<pre lang="{name}"><code class="{name}">"#).into(),
+            );
+            Some(CodeBlock {
+               name,
+               events: vec![leading_html],
+            })
          }
-         CodeBlockKind::Indented => CodeBlock {
-            highlighting: Highlighting::RequiresFirstLineParse,
-            syntax_set: Some(syntax_set),
-            events: vec![],
-         },
+         // `arborium` does not support parsing from the text, and I always specify the
+         // type on the “fence” anyway so in this case I *expect* no parsing to happen.
+         CodeBlockKind::Indented => None,
       }
    }
 
-   /// Produces events when:
-   ///
-   /// - starting a new code block
-   /// - ending a code block
-   ///
-   /// Note that it does *not* emit events while highlighting a line. Instead, it stores
-   /// internal state which produces a single fully-rendered HTML event when complete.
-   fn highlight(&mut self, text: &CowStr<'c>) -> Result<(), Error> {
-      let mut handle_unknown = || {
-         self
-            .events
-            .push(pulldown_cmark::Event::Text(text.to_owned()))
+   fn highlight(
+      &mut self,
+      text: CowStr<'_>,
+      highlighter: &mut Highlighter,
+   ) -> Result<(), Error> {
+      let highlighted_if_possible = match highlighter.highlight(&self.name, &text) {
+         Ok(s) => {
+            debug!("highlighted some {} code", self.name);
+            s
+         }
+         Err(arborium::Error::UnsupportedLanguage { language }) => {
+            debug!(
+               "could not highlight {} code",
+               if language.is_empty() {
+                  "(unknown)"
+               } else {
+                  &language
+               }
+            );
+            text.to_string()
+         }
+         Err(highlight_err) => return Err(highlight_err.into()),
       };
 
-      let Some(syntax_set) = self.syntax_set else {
-         handle_unknown();
-         return Ok(());
-      };
+      self
+         .events
+         .push(pulldown_cmark::Event::Html(highlighted_if_possible.into()));
 
-      match self.highlighting {
-         Highlighting::RequiresFirstLineParse => {
-            match syntax_set.find_syntax_by_first_line(text) {
-               // If Syntect has a definition, emit processed HTML for the wrapper
-               // and for the first line.
-               Some(definition) => {
-                  let mut generator = ClassedHTMLGenerator::new_with_class_style(
-                     definition,
-                     syntax_set,
-                     ClassStyle::Spaced,
-                  );
-                  let event = pulldown_cmark::Event::Html(
-                     format!(
-                        "<pre lang='{name}'><code class='{name}'>",
-                        name = definition.name
-                     )
-                     .into(),
-                  );
-                  generator
-                     .parse_html_for_line_which_includes_newline(text)
-                     .map_err(|e| Error::BadSyntaxLine { source: e })?;
-                  self.highlighting = Highlighting::KnownSyntax(generator);
-                  self.events.push(event);
-                  Ok(())
-               }
-
-               // Otherwise, we treat this as a code block, but with no syntax
-               // highlighting applied.
-               None => {
-                  self.highlighting = Highlighting::UnknownSyntax;
-                  let event = pulldown_cmark::Event::Html(
-                     (String::from("<pre><code>") + text).into(),
-                  );
-                  self.events.push(event);
-                  Ok(())
-               }
-            }
-         }
-
-         // This is a little quirky: it hands off the text to the highlighter and
-         // relies on correctly calling `highlighter.finalize()` when we reach the
-         // end of the code block.
-         // TODO: consider type-state-ifying that, too!
-         Highlighting::KnownSyntax(ref mut generator) => {
-            generator
-               .parse_html_for_line_which_includes_newline(text.as_ref())
-               .map_err(|e| Error::BadSyntaxLine { source: e })?;
-
-            // ...and therefore produces no events!
-            Ok(())
-         }
-
-         Highlighting::UnknownSyntax => {
-            handle_unknown();
-            Ok(())
-         }
-      }
+      Ok(())
    }
 
-   /// Finish a code block, consuming the state and producing a single `Event::Html`
-   /// as its result.
-   fn end(mut self) -> Vec<pulldown_cmark::Event<'c>> {
-      let end_html = match self.highlighting {
-         Highlighting::KnownSyntax(generator) => generator.finalize() + "</code></pre>",
-         _ => "</code></pre>".to_string(),
-      };
-      let end_event = pulldown_cmark::Event::Html(end_html.into());
-      self.events.push(end_event);
+   fn end(mut self) -> Vec<pulldown_cmark::Event<'e>> {
+      self
+         .events
+         .push(pulldown_cmark::Event::Html("</code></pre>".into()));
       self.events
-   }
-}
-
-enum Highlighting<'s> {
-   RequiresFirstLineParse,
-   UnknownSyntax,
-   KnownSyntax(ClassedHTMLGenerator<'s>),
-}
-
-impl std::fmt::Debug for Highlighting<'_> {
-   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-      match self {
-         Self::RequiresFirstLineParse => write!(f, "RequiresFirstLineParse"),
-         Self::UnknownSyntax => write!(f, "UnknownSyntax"),
-         Self::KnownSyntax(_) => write!(f, "KnownSyntax"),
-      }
    }
 }

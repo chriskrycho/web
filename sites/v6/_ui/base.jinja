@@ -8,6 +8,8 @@
       <title>{{resolved_title(data.title, config.title)}}</title>
 
       <link rel="stylesheet" href="/style.css">
+      <link rel="stylesheet" href="/colors/highlighting/light.css" media="(prefers-color-scheme: light)">
+      <link rel="stylesheet" href="/colors/highlighting/dark.css" media="(prefers-color-scheme: dark)">
 
       {% block meta %}{% endblock %}
 
@@ -16,7 +18,7 @@
   <body>
       <nav>
          {% for nav_item in config.nav %}
-            {{nav_item()}}
+         (nav item)
          {% endfor %}
       </nav>
       <main>

@@ -1,12 +1,11 @@
 use std::{error, fmt, fs, io};
 
+use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
 use rayon::{iter::Either, prelude::*};
 use thiserror::Error;
-
-use lx_md::Markdown;
 
 use crate::{
    archive::Archive,
@@ -22,7 +21,7 @@ use crate::{
 
 pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
    let config = config_for(&directory)?;
-   build(&directory, &config, &Markdown::new(None), Mode::Build)
+   build(&directory, &config, Mode::Build)
 }
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
@@ -42,7 +41,6 @@ pub enum Mode {
 pub fn build(
    directory: &Canonicalized,
    config: &Config,
-   md: &Markdown,
    mode: Mode,
 ) -> Result<(), Error> {
    debug!("Building in {directory}");
@@ -113,7 +111,7 @@ pub fn build(
       // the map call depending on what kind of file it is.
       .filter(|source| source.path.extension().is_some_and(|ext| ext == "md"))
       .map(|source| {
-         page::prepare(md, source, &cascade)
+         page::prepare(source, &cascade)
             .map(|prepared| (prepared, source))
             .map_err(|e| (source.path.clone(), e))
       })
@@ -127,12 +125,14 @@ pub fn build(
 
    let content_dir = input_dir.join("content");
 
+   let highlighter = Highlighter::new();
+
    let (errors, items): (Vec<_>, Vec<_>) = prepared_pages
       .into_par_iter()
       .map(|(prepared, source)| {
          // TODO: once the taxonomies exist, pass them here.
          prepared
-            .render(md, |text, metadata| {
+            .render(&mut highlighter.fork(), |text, metadata| {
                let after_jinja = jinja_env
                   .render_str(text, metadata)
                   .map_err(|source| Error::rewrite(source, text))?;
@@ -448,22 +448,6 @@ impl fmt::Display for PageError {
       };
 
       for (path, error) in &self.errors {
-         writeln!(f, "{path}:\n\t{error}")?;
-         write_to_fmt(f, error)?;
-      }
-
-      Ok(())
-   }
-}
-
-#[derive(Error, Debug)]
-pub struct RewriteErrors(Vec<(Utf8PathBuf, minijinja::Error)>);
-
-impl fmt::Display for RewriteErrors {
-   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      let errors = &self.0;
-      writeln!(f, "could not rewrite {} pages", errors.len())?;
-      for (path, error) in errors {
          writeln!(f, "{path}:\n\t{error}")?;
          write_to_fmt(f, error)?;
       }

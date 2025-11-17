@@ -113,10 +113,10 @@ The development server (lx/src/server.rs) uses:
 - Individual crate configs in lx/Cargo.toml and subcrates
 
 ### Dependencies
+- **arborium** - Syntax highlighting
 - **axum** - Web server framework
 - **minijinja** - Templating engine
 - **lightningcss** - CSS processing
-- **syntect** - Syntax highlighting
 - **notify/watchexec** - File watching
 - **clap** - CLI argument parsing
 - **serde** - Serialization

@@ -21,7 +21,7 @@ It is an explicit non-goal to be an exact drop-in replacement for any other gene
 - [x] Render Markdown
 
     - [x] with [pulldown-cmark]
-    - [x] with [Syntect] for syntax highlighting
+    - [x] with [Arborium] for syntax highlighting
 
 - [ ] Templating
 
@@ -50,7 +50,7 @@ It is an explicit non-goal to be an exact drop-in replacement for any other gene
 - [ ] Supply (and make it easy to extend) a `create` command and interface. `lx create note`, `lx create journal` etc.
 
 [pulldown-cmark]: https://crates.io/crates/pulldown-cmark
-[Syntect]: https://crates.io/crates/syntect
+[Arborium]: https://crates.io/crates/arborium
 
 ## Why?
 

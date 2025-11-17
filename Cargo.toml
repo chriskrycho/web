@@ -15,6 +15,7 @@ license = "BlueOak-1.0.0"
 
 [workspace.dependencies]
 anyhow = "1"
+arborium = { version = "2.1", features = ["lang-rust", "lang-css", "lang-scss", "lang-markdown", "lang-javascript", "lang-typescript", "lang-toml", "lang-bash", "lang-zsh", "lang-fish"] } # specify `features` for specific languages
 clap = { version = "4", features = ["unicode", "cargo", "derive"] }
 clap_complete = "4"
 count-md = "0.2"
@@ -26,9 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 simplelog = { version = "0.12", features = ["paris"] }
-syntect = { version = "5", default-features = false, features = [
-    "default-fancy",
-] }
+
 thiserror = "2"
 
 [profile.dev]

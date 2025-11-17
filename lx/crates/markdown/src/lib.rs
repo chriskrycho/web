@@ -15,11 +15,11 @@ mod second_pass;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use arborium::Highlighter;
 use lazy_static::lazy_static;
 pub use pulldown_cmark::Options;
 use pulldown_cmark::{CowStr, Event, MetadataBlockKind, Parser, Tag, TagEnd, html};
 use serde::{Deserialize, Serialize};
-use syntect::parsing::SyntaxSet;
 use thiserror::Error;
 
 use first_pass::FirstPass;
@@ -85,53 +85,41 @@ lazy_static! {
    };
 }
 
-pub struct Markdown {
-   syntax_set: SyntaxSet,
+pub fn render(
+   src: &str,
+   highlighter: &mut Highlighter,
+   rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
+) -> Result<(Option<String>, Rendered), Error> {
+   let prepared = prepare(src)?;
+   let rendered = emit(prepared.to_render, highlighter, rewrite)?;
+
+   // TODO: return named types instead of anonymous tuple values. Maybe just attach the
+   // metadata to the `Rendered` type?
+   Ok((prepared.metadata_src, rendered))
 }
 
-impl Markdown {
-   pub fn new(syntax_set: Option<SyntaxSet>) -> Markdown {
-      Markdown {
-         syntax_set: syntax_set.unwrap_or_else(load_syntaxes), // TODO: pull from location?
-      }
-   }
+pub fn emit(
+   to_render: ToRender,
+   highlighter: &mut Highlighter,
+   rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
+) -> Result<Rendered, RenderError> {
+   let ToRender {
+      first_pass_events,
+      footnote_definitions,
+   } = to_render;
 
-   pub fn render(
-      &self,
-      src: &str,
-      rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
-   ) -> Result<(Option<String>, Rendered), Error> {
-      let prepared = prepare(src)?;
-      let rendered = self.emit(prepared.to_render, rewrite)?;
+   let events = second_pass(
+      footnote_definitions,
+      highlighter,
+      first_pass_events,
+      rewrite,
+   )
+   .map_err(RenderError::from)?;
 
-      // TODO: return named types instead of anonymous tuple values. Maybe just attach the
-      // metadata to the `Rendered` type?
-      Ok((prepared.metadata_src, rendered))
-   }
+   let mut content = String::new();
+   html::push_html(&mut content, events);
 
-   pub fn emit(
-      &self,
-      to_render: ToRender,
-      rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
-   ) -> Result<Rendered, RenderError> {
-      let ToRender {
-         first_pass_events,
-         footnote_definitions,
-      } = to_render;
-
-      let events = second_pass(
-         footnote_definitions,
-         &self.syntax_set,
-         first_pass_events,
-         rewrite,
-      )
-      .map_err(RenderError::from)?;
-
-      let mut content = String::new();
-      html::push_html(&mut content, events);
-
-      Ok(Rendered(content))
-   }
+   Ok(Rendered(content))
 }
 
 pub fn prepare(src: &str) -> Result<Prepared<'_>, Error> {
@@ -232,32 +220,4 @@ fn bad_prepare_state<T>(state: &impl Debug, context: &impl Debug) -> Result<T, E
       state: format!("{state:?}"),
       context: format!("{context:?}"),
    }))
-}
-
-// TODO: I think what I would *like* to do is have a slow path for dev and a
-// fast path for prod, where the slow path just loads the `.sublime-syntax`
-// from disk and compiles them, and the fast path uses a `build.rs` or similar
-// to build a binary which can then be compiled straight into the target binary
-// and loaded *extremely* fast as a result.
-//
-// The basic structure for a prod build would be something like:
-//
-// - `build.rs`:
-//    - `syntect::SyntaxSet::load_from_folder(<path to templates>)`
-//    - `syntect::dumps::dump_to_uncompressed_file(<well-known-path>)`
-// - here (or, better, in a dedicated `syntax` module?):
-//    - `include_bytes!(<well-known-path>)`
-//    - `syntect::dumps::from_uncompressed_data()`
-fn load_syntaxes() -> SyntaxSet {
-   // let mut extra_syntaxes_dir = std::env::current_dir().map_err(|e| format!("{}", e))?;
-   // extra_syntaxes_dir.push("syntaxes");
-
-   // let syntax_builder = SyntaxSet::load_defaults_newlines().into_builder();
-   // let mut syntax_builder = SyntaxSet::load_defaults_newlines().into_builder();
-   // syntax_builder
-   //     .add_from_folder(&extra_syntaxes_dir, false)
-   //     .map_err(|e| format!("could not load {}: {}", &extra_syntaxes_dir.display(), e))?;
-
-   // syntax_builder.build()
-   SyntaxSet::load_defaults_newlines()
 }

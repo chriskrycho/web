@@ -2,21 +2,18 @@ use crate::data::{
    config::Config,
    item::{self, Metadata, Slug, cascade::Cascade, serial},
 };
+use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use json_feed::Author;
-use lx_md::{self, Markdown, RenderError, ToRender};
+use lx_md::{self, RenderError, ToRender};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
 use thiserror::Error;
 use uuid::Uuid;
 
-pub fn prepare<'e>(
-   md: &Markdown,
-   source: &'e Source,
-   cascade: &Cascade,
-) -> Result<Prepared<'e>, Error> {
+pub fn prepare<'e>(source: &'e Source, cascade: &Cascade) -> Result<Prepared<'e>, Error> {
    let lx_md::Prepared {
       metadata_src,
       to_render,
@@ -31,7 +28,6 @@ pub fn prepare<'e>(
             source,
             cascade,
             String::from("base.jinja"), // TODO: not this
-            md,
          )
          .map_err(Error::from)
       })?;
@@ -56,14 +52,16 @@ pub struct Prepared<'e> {
 impl Prepared<'_> {
    pub fn render(
       self,
-      md: &Markdown,
+      highlighter: &mut Highlighter,
       rewrite: impl Fn(
          &str,
          &Metadata,
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
    ) -> Result<Rendered, Error> {
       Ok(Rendered {
-         content: md.emit(self.to_render, |text| rewrite(text, &self.data))?,
+         content: lx_md::emit(self.to_render, highlighter, |text| {
+            rewrite(text, &self.data)
+         })?,
          date: self.date,
          data: self.data,
       })
