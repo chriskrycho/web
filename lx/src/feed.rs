@@ -6,10 +6,7 @@ use json_feed::{AuthorOptions, JSONFeed};
 use thiserror::Error;
 
 use crate::page::Post;
-use crate::{
-   data::config::Config,
-   page::PostAndConfig,
-};
+use crate::{data::config::Config, page::PostAndConfig};
 
 /// Required resources for a `Feed`.
 pub struct Feed<'a> {
