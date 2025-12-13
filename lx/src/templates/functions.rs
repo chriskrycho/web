@@ -190,6 +190,12 @@ impl Object for Label {
    }
 }
 
+impl From<Label> for Value {
+   fn from(value: Label) -> Self {
+      Value::from_object(value)
+   }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct ApproximateLength {
    rounded: u64,
