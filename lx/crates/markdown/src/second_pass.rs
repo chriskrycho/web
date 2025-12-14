@@ -248,8 +248,12 @@ impl<'e> CodeBlock<'e> {
    fn start(kind: CodeBlockKind<'e>) -> Option<Self> {
       match kind {
          CodeBlockKind::Fenced(name) => {
+            let lang = match name.as_ref() {
+               "sh" => "bash",
+               _ => &name,
+            };
             let leading_html = pulldown_cmark::Event::Html(
-               format!(r#"<pre lang="{name}"><code class="{name}">"#).into(),
+               format!(r#"<pre lang="{lang}"><code class="{lang}">"#).into(),
             );
             Some(CodeBlock {
                name,
