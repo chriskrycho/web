@@ -96,7 +96,16 @@ fn yaml_to_html(source: &Value, output: &mut Box<dyn Write>) -> Result<(), Error
       Value::Null => write("(null)", output),
       Value::Bool(bool) => write(&bool.to_string(), output),
       Value::Number(number) => write(&number.to_string(), output),
-      Value::String(string) => write(string, output),
+      // TODO: this could be more elegantly done with a re-export of the simpler renderer!
+      Value::String(string) => write(
+         lx_md::render(string, &mut arborium::Highlighter::new(), |s| {
+            Ok(s.to_string())
+         })
+         .expect("Any basic YAML string can be rendered")
+         .1
+         .html(),
+         output,
+      ),
       Value::Sequence(values) => {
          write("<ul>", output)?;
          for value in values {
