@@ -22,6 +22,9 @@ pub fn convert(
    })
    .map_err(Error::from)?;
 
+   // TODO: in the case of wrapping HTML, the question is what I want this *for*. In the
+   //   case of BBEdit or Marked or similar, I actually just want to be able to separately
+   //   generate the CSS to a specified location!
    if include.wrapping_html {
       write(
          r#"<html>

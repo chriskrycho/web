@@ -1,6 +1,6 @@
 //! Run the static site generator.
 
-use std::io::{BufReader, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::{fmt, fs};
 
 use anyhow::anyhow;
@@ -98,7 +98,6 @@ fn main() -> Result<(), anyhow::Error> {
       }
 
       Command::Styles { paths, minify } => {
-         // TODO: make Mode a top-level concern
          let css = style::convert(
             &paths.input,
             if minify {
@@ -107,15 +106,52 @@ fn main() -> Result<(), anyhow::Error> {
                style::OutputMode::Dev
             },
          )?;
-         fs::write(paths.output, css)?;
+
+         // TODO: will likely want to add support for CSS output for different sites! But
+         //   that’s a concern for a different day.
+         match paths.output {
+            Some(output) => fs::write(output, &css)?,
+            None => {
+               let home: Utf8PathBuf = dirs::home_dir()
+                  .ok_or_else(|| Error::NoHomeDir)?
+                  .try_into()?;
+
+               let mut bbedit_dir = Utf8PathBuf::new();
+               bbedit_dir.extend([
+                  home.as_str(),
+                  "Library",
+                  "Application Support",
+                  "BBEdit",
+               ]);
+
+               let bbedit_css_dir = bbedit_dir.join("Preview CSS");
+               log::debug!("BBEdit CSS Preview dir: {bbedit_css_dir}");
+               let bbedit_css_path = bbedit_css_dir.join("web.css");
+               fs::write(bbedit_css_path, &css)?;
+
+               let bbedit_template_dir = bbedit_dir.join("Preview Templates");
+               log::debug!("BBEdit Template Preview dir: {bbedit_template_dir}");
+               let bbedit_template_path = bbedit_template_dir.join("web.html");
+               log::debug!("BBEdit Template Preview path: {bbedit_template_path}");
+
+               fs::write(
+                  &bbedit_template_path,
+                  r#"<html><body><div class="content-wrapper"><div class="content">#DOCUMENT_CONTENT#</div></div></body></html>"#,
+               )?;
+
+               let mut other_tools_dir = Utf8PathBuf::new();
+               other_tools_dir.extend([home.as_str(), "dev", "tools"]);
+               log::debug!("Other tools CSS dir: {other_tools_dir}");
+               let other_tools_path = other_tools_dir.join("web.css");
+               fs::write(other_tools_path, &css)?;
+            }
+         }
          Ok(())
       }
 
       Command::Theme(Theme::List) => {
-         let themes = arborium::theme::builtin::all();
-
          println!("Available themes:");
-         for theme in themes {
+         for theme in arborium::theme::builtin::all() {
             println!("\t{}", theme.name);
          }
          Ok(())
@@ -134,7 +170,7 @@ fn main() -> Result<(), anyhow::Error> {
             .find(|t| t.name == name)
             .ok_or_else(|| Error::InvalidThemeName(name))?;
 
-         let css = theme.to_css(&format!(".{mode}, :root"));
+         let css = theme.to_css(&format!(".{mode} pre code"));
 
          let dest_cfg = path
             .map(|path| DestCfg::Path { buf: path, force })
@@ -403,8 +439,10 @@ struct StylePaths {
    #[arg()]
    input: Utf8PathBuf,
 
+   /// Custom output path. Otherwise, this will render to BBEdit’s Application Support
+   /// directory and `~/dev/tools`.
    #[arg()]
-   output: Utf8PathBuf,
+   output: Option<Utf8PathBuf>,
 
    /// If the supplied `output` file is present, overwrite it.
    #[arg(long, default_missing_value("true"), num_args(0..=1), require_equals(true))]
