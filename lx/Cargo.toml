@@ -30,7 +30,7 @@ glob = "0.3"
 indexmap = { version = "2.11.1", features = ["rayon", "serde"] }
 json-feed = { path = "./crates/json-feed" }
 lazy_static = { workspace = true }
-lightningcss = "^1.0.0-alpha.67"
+lightningcss = "^1.0.0-alpha.68"
 local-ip-address = "0.6"
 log = { workspace = true }
 lx-md = { path = "./crates/markdown" }
