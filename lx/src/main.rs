@@ -136,7 +136,7 @@ fn main() -> Result<(), anyhow::Error> {
 
                fs::write(
                   &bbedit_template_path,
-                  r#"<html><body><div class="content-wrapper"><div class="content">#DOCUMENT_CONTENT#</div></div></body></html>"#,
+                  r#"<html><body><main><article class="content">#DOCUMENT_CONTENT#</article></main></body></html>"#,
                )?;
 
                let mut other_tools_dir = Utf8PathBuf::new();
