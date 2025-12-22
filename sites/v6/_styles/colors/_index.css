@@ -1,4 +1,3 @@
 @import 'colors.css';
 @import 'theme.css';
-@import 'highlighting/light.css';
-@import 'highlighting/dark.css';
+@import 'highlighting.css';

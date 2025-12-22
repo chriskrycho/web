@@ -1,7 +1,7 @@
 //! Run the static site generator.
 
-use std::io::{self, BufReader, Read, Write};
-use std::{fmt, fs};
+use std::fs;
+use std::io::{BufReader, Read, Write};
 
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
@@ -20,6 +20,7 @@ mod collection;
 mod data;
 mod error;
 mod feed;
+mod light_dark;
 mod md;
 mod page;
 mod server;
@@ -158,19 +159,33 @@ fn main() -> Result<(), anyhow::Error> {
       }
 
       Command::Theme(Theme::Emit {
-         name,
+         light,
+         dark,
          path,
          force,
-         mode,
+         prefix,
       }) => {
          let themes = arborium::theme::builtin::all();
 
-         let theme = themes
+         let light_theme = themes
             .iter()
-            .find(|t| t.name == name)
-            .ok_or_else(|| Error::InvalidThemeName(name))?;
+            .find(|t| t.name == light)
+            .ok_or_else(|| Error::InvalidThemeName(light))?;
 
-         let css = theme.to_css(&format!(".{mode} pre code"));
+         let dark_theme = themes
+            .iter()
+            .find(|t| t.name == dark)
+            .ok_or_else(|| Error::InvalidThemeName(dark))?;
+
+         let config = light_dark::Config {
+            light: light_theme,
+            dark: dark_theme,
+            selector_prefix: prefix.as_deref().unwrap_or(""),
+         };
+
+         let css = config
+            .to_css()
+            .map_err(|source| Error::LightDark { source })?;
 
          let dest_cfg = path
             .map(|path| DestCfg::Path { buf: path, force })
@@ -305,6 +320,9 @@ enum Error {
    #[error("invalid theme name: {0}")]
    InvalidThemeName(String),
 
+   #[error("could not generate light-dark CSS: {source}")]
+   LightDark { source: light_dark::Error },
+
    #[error("IO (for {target})")]
    Io {
       target: String,
@@ -384,11 +402,15 @@ enum Theme {
    /// List all themes,
    List,
 
-   /// Emit a named theme
-   #[arg()]
+   /// Emit merged theme CSS using light-dark() for automatic theme switching
    Emit {
-      /// The theme name to use. To see all themes, use `lx theme list`.
-      name: String,
+      /// The light theme name to use. To see all themes, use `lx theme list`.
+      #[arg(long, short)]
+      light: String,
+
+      /// The dark theme name to use. To see all themes, use `lx theme list`.
+      #[arg(long, short)]
+      dark: String,
 
       /// Where to emit the theme CSS. If absent, will use `stdout`.
       #[arg(long = "to")]
@@ -398,25 +420,10 @@ enum Theme {
       #[arg(long, requires = "path")]
       force: bool,
 
-      #[clap(value_enum)]
-      #[arg(short, long)]
-      mode: Mode,
+      /// Optional CSS selector prefix (e.g., "pre code"). If absent, uses no prefix.
+      #[arg(long, short)]
+      prefix: Option<String>,
    },
-}
-
-#[derive(Debug, PartialEq, Clone, clap::ValueEnum)]
-enum Mode {
-   Light,
-   Dark,
-}
-
-impl fmt::Display for Mode {
-   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      f.write_str(match self {
-         Mode::Light => "light",
-         Mode::Dark => "dark",
-      })
-   }
 }
 
 #[derive(Args, Debug, PartialEq, Clone)]
