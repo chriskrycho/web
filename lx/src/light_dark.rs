@@ -161,7 +161,8 @@ fn tag_in(selectors: &SelectorList) -> Option<String> {
       return None;
    }
 
-   // Anything past the first
+   // Anything past the first three is irrelevant to this: the only relevant options are
+   // the direct tag and the nesting selector `& <tag>`.
    let components: Vec<_> = selectors.0[0].iter_raw_match_order().take(3).collect();
 
    let local_name = match components.as_slice() {

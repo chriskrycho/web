@@ -320,7 +320,7 @@ enum Error {
    #[error("invalid theme name: {0}")]
    InvalidThemeName(String),
 
-   #[error("could not generate light-dark CSS: {source}")]
+   #[error("could not generate light-dark CSS for syntax highlighting theme: {source}")]
    LightDark { source: light_dark::Error },
 
    #[error("IO (for {target})")]
