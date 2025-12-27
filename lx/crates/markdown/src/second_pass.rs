@@ -18,7 +18,14 @@ struct State<'e, 's> {
    highlighter: &'s mut Highlighter,
    code_block: Option<CodeBlock<'e>>,
    events: Vec<pulldown_cmark::Event<'e>>,
-   emitted_definitions: Vec<(CowStr<'e>, Vec<pulldown_cmark::Event<'e>>)>,
+   emitted_definitions: Vec<EmittedDefinitions<'e>>,
+   next_backref_index: usize,
+}
+
+struct EmittedDefinitions<'e> {
+   ref_name: CowStr<'e>,
+   events: Vec<pulldown_cmark::Event<'e>>,
+   backref_indexes: Vec<usize>,
 }
 
 #[derive(Error, Debug)]
@@ -62,6 +69,7 @@ pub(super) fn second_pass<'e>(
       code_block: None,
       events: vec![],
       emitted_definitions: vec![],
+      next_backref_index: 1,
    };
 
    for event in events {
@@ -155,12 +163,43 @@ impl<'e> State<'e, '_> {
 
          first_pass::Event::FootnoteReference(name) => {
             if let Some(definition) = self.footnote_definitions.get(&name) {
-               self.emitted_definitions.push((name, definition.clone()));
-               let index = self.emitted_definitions.len();
+               // Check if this footnote has already been emitted. Even for fairly large
+               // documents, this linear search should be quite fast, because the number
+               // of footnotes should be quite low.
+               let previous_emit_index = self.emitted_definitions.iter().position(
+                  |EmittedDefinitions {
+                      ref_name,
+                      events: _,
+                      backref_indexes: _,
+                   }| ref_name == &name,
+               );
+
+               // If the footnote *was* already emitted, I’ll avoid emitting it again, but
+               // track that for the backrefs
+               let backref_index = self.next_backref_index;
+               self.next_backref_index += 1;
+
+               let fn_index = match previous_emit_index {
+                  Some(index) => {
+                     self.emitted_definitions[index]
+                        .backref_indexes
+                        .push(backref_index);
+                     index + 1
+                  }
+                  None => {
+                     self.emitted_definitions.push(EmittedDefinitions {
+                        ref_name: name.clone(),
+                        events: definition.clone(),
+                        backref_indexes: vec![backref_index],
+                     });
+                     self.emitted_definitions.len()
+                  }
+               };
+
                let link = format!(
-                  r##"<sup><a href="#{name}" id="{backref}">{index}</a></sup>"##,
-                  name = footnote_ref_name(index),
-                  backref = footnote_backref_name(index),
+                  r##"<sup><a href="#{name}" id="{backref}">{fn_index}</a></sup>"##,
+                  name = footnote_ref_name(fn_index),
+                  backref = footnote_backref_name(backref_index),
                );
 
                self.events.push(Html(link.into()));
@@ -202,30 +241,48 @@ impl<'e> IntoIterator for State<'e, '_> {
             r#"<section class="footnotes"><ol class="footnotes-list">"#.into(),
          ));
 
-         for (index, _, mut definition_events) in self
-            .emitted_definitions
-            .into_iter()
-            .enumerate()
-            .map(|(index, (name, evts))| (index + 1, name, evts))
+         for (index, _, mut definition_events, backref_indexes) in
+            self.emitted_definitions.into_iter().enumerate().map(
+               |(
+                  index,
+                  EmittedDefinitions {
+                     ref_name: name,
+                     events: evts,
+                     backref_indexes,
+                  },
+               )| { (index + 1, name, evts, backref_indexes) },
+            )
          {
             events.push(Html(format!(r#"<li id="fn{index}">"#).into()));
 
-            let backref = Html(
-               format!(
-                  r##"<a href="#{backref}" class="fn-backref">↩</a>"##,
-                  backref = footnote_backref_name(index)
-               )
-               .into(),
+            let backrefs = Html(
+               backref_indexes
+                  .iter()
+                  .enumerate()
+                  .map(|(backref_link_index, &backref_index)| {
+                     format!(
+                        r##"<a href="#{target}" class="fn-backref">↩{suffix}</a>"##,
+                        target = footnote_backref_name(backref_index),
+                        suffix = if backref_link_index == 0 {
+                           String::new()
+                        } else {
+                           format!("<sup>{}.{}</sup>", backref_link_index, backref_index)
+                        }
+                     )
+                  })
+                  .collect::<Vec<_>>()
+                  .join(" ")
+                  .into(),
             );
 
             if let Some(End(TagEnd::Paragraph)) = definition_events.last() {
                let p = definition_events.pop().unwrap();
-               definition_events.push(backref);
+               definition_events.push(backrefs);
                definition_events.push(p);
                events.append(&mut definition_events);
             } else {
                events.append(&mut definition_events);
-               events.push(backref);
+               events.push(backrefs);
             }
 
             events.push(End(TagEnd::Item));
