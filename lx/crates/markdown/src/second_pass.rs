@@ -296,7 +296,7 @@ impl<'e> IntoIterator for State<'e, '_> {
                         suffix = if backref_link_index == 0 {
                            String::new()
                         } else {
-                           format!("<sup>{}.{}</sup>", backref_link_index, backref_index)
+                           format!("<sup>{}</sup>", backref_link_index + 1)
                         }
                      )
                   })
