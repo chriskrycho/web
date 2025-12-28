@@ -109,7 +109,9 @@ fn yaml_to_html(source: &Value, output: &mut Box<dyn Write>) -> Result<(), Error
       Value::Sequence(values) => {
          write("<ul>", output)?;
          for value in values {
+            write("<li>", output)?;
             yaml_to_html(value, output)?;
+            write("</li>", output)?;
          }
          write("</ul>", output)?;
          Ok(())
