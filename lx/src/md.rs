@@ -118,25 +118,16 @@ fn yaml_to_html(source: &Value, output: &mut Box<dyn Write>) -> Result<(), Error
       }
       Value::Mapping(mapping) => {
          write("<table>", output)?;
-         let (keys, values) = mapping.into_iter().collect::<(Vec<_>, Vec<_>)>();
-         if !keys.is_empty() {
-            write("<thead><tr>", output)?;
-            for key in keys {
-               write("<th>", output)?;
-               yaml_to_html(key, output)?;
-               write("</th>", output)?;
-            }
-            write("</tr></thead>", output)?;
-
-            write("<tbody><tr>", output)?;
-            for value in values {
-               write("<td>", output)?;
-               yaml_to_html(value, output)?;
-               write("</td>", output)?;
-            }
-            write("</tr></tbody>", output)?;
+         for (key, value) in mapping {
+            write("<tr>", output)?;
+            write("<th scope=\"row\">", output)?;
+            yaml_to_html(key, output)?;
+            write("</th>", output)?;
+            write("<td>", output)?;
+            yaml_to_html(value, output)?;
+            write("</td>", output)?;
+            write("</tr>", output)?;
          }
-
          write("</table>", output)?;
          Ok(())
       }
