@@ -18,13 +18,22 @@ struct State<'e, 's> {
    highlighter: &'s mut Highlighter,
    code_block: Option<CodeBlock<'e>>,
    events: Vec<pulldown_cmark::Event<'e>>,
-   emitted_definitions: Vec<EmittedDefinitions<'e>>,
+   /// Definitions for which a corresponding reference has been found in the document.
+   emitted_definitions: Vec<EmittedDefinition<'e>>,
+   /// The order of backref indexes, a document-level consideration.
    next_backref_index: usize,
 }
 
-struct EmittedDefinitions<'e> {
+struct EmittedDefinition<'e> {
+   /// The name of the reference, like `foo` in `[^foo]`.
+   ///
+   /// Currently only used to keep track of whether I have seen the definition before, but
+   /// it may also be useful for disambiguating references across documents if I find I
+   /// need to do that at some point.
    ref_name: CowStr<'e>,
    events: Vec<pulldown_cmark::Event<'e>>,
+   /// Document-global backref indexes to use when emitting the back-links to references
+   /// to this definition at the end of the document.
    backref_indexes: Vec<usize>,
 }
 
@@ -161,55 +170,81 @@ impl<'e> State<'e, '_> {
             }
          },
 
+         // When I find footnote *references*, push the corresponding *definitions* into
+         // the set of `emitted_definitions` so they will be rendered at the end of the
+         // document. This approach guarantees two things:
+         //
+         // 1. I will always emit definitions in the order corresponding to the order the
+         //    corresponding *reference* appears in the document.
+         // 2. I will not emit definitions for which a reference never appears. (I do
+         //    produce an error in that case, though, to be handled elsewhere!)
          first_pass::Event::FootnoteReference(name) => {
-            if let Some(definition) = self.footnote_definitions.get(&name) {
-               // Check if this footnote has already been emitted. Even for fairly large
-               // documents, this linear search should be quite fast, because the number
-               // of footnotes should be quite low.
-               let previous_emit_index = self.emitted_definitions.iter().position(
-                  |EmittedDefinitions {
-                      ref_name,
-                      events: _,
-                      backref_indexes: _,
-                   }| ref_name == &name,
-               );
+            match self.footnote_definitions.get(&name) {
+               Some(definition) => {
+                  // Only emit footnote definitions once. This means I need to track both
+                  // whether I have emitted a given definition *and* how many times I have
+                  // done so, so that I can target the correct footnote when generating a
+                  // link and generate the correct `id` for the backref.
+                  //
+                  // Check whether I have previously emitted a definition, by finding it
+                  // in the set of emitted definitions. A simple linear search *should* be
+                  // fine here, as the number of emitted definitions should be pretty low
+                  // in a large document.
+                  //
+                  // If I have previously emitted it, I will update its internal state;
+                  // otherwise, I will emit it!
 
-               // If the footnote *was* already emitted, I’ll avoid emitting it again, but
-               // track that for the backrefs
-               let backref_index = self.next_backref_index;
-               self.next_backref_index += 1;
+                  let previously_emitted = self
+                     .emitted_definitions
+                     .iter_mut() // so we can mutate `emitted_def` directly!
+                     .enumerate()
+                     .find(|(_index, emitted)| emitted.ref_name == name);
 
-               let fn_index = match previous_emit_index {
-                  Some(index) => {
-                     self.emitted_definitions[index]
-                        .backref_indexes
-                        .push(backref_index);
-                     index + 1
-                  }
-                  None => {
-                     self.emitted_definitions.push(EmittedDefinitions {
-                        ref_name: name.clone(),
-                        events: definition.clone(),
-                        backref_indexes: vec![backref_index],
-                     });
-                     self.emitted_definitions.len()
-                  }
-               };
+                  // What this does is weird, but works. Remember: I’m in the midst of
+                  // emitting *references*, not *definitions*, but I need to make sure the
+                  // *definitions* are emitted, so that I can reconstitute them into the
+                  // list at the end. So I need to keep track of two things:
+                  //
+                  // - Which *footnote reference* I am emitting, so that I can build the
+                  //   link correctly.
+                  // - Which *backref* I am emitting, for the same reason, but with a
+                  //   small wrinkle. I use simple numeric indexes for these, but backref
+                  //   indexes are document-order, not per-definition.
 
-               let link = format!(
-                  r##"<sup><a href="#{name}" id="{backref}">{fn_index}</a></sup>"##,
-                  name = footnote_ref_name(fn_index),
-                  backref = footnote_backref_name(backref_index),
-               );
+                  let backref_index = self.next_backref_index;
+                  self.next_backref_index += 1;
 
-               self.events.push(Html(link.into()));
-               Ok(HandleOutput::Normal)
-            } else {
-               let event = Text(format!("[^{name}]").into());
-               self.events.push(event);
-               Ok(HandleOutput::Weird(format!(
-                  "Missing definition for footnote labeled '{name}'"
-               )))
+                  let footnote_index = match previously_emitted {
+                     Some((previous_emit_index, emitted_def)) => {
+                        emitted_def.backref_indexes.push(backref_index);
+                        previous_emit_index + 1
+                     }
+                     None => {
+                        self.emitted_definitions.push(EmittedDefinition {
+                           ref_name: name.clone(),
+                           events: definition.clone(),
+                           backref_indexes: vec![backref_index],
+                        });
+                        self.emitted_definitions.len()
+                     }
+                  };
+
+                  let link = format!(
+                     r##"<sup><a href="#{name}" id="{backref}">{footnote_index}</a></sup>"##,
+                     name = footnote_ref_name(footnote_index),
+                     backref = footnote_backref_name(backref_index),
+                  );
+
+                  self.events.push(Html(link.into()));
+                  Ok(HandleOutput::Normal)
+               }
+               None => {
+                  let event = Text(format!("[^{name}]").into());
+                  self.events.push(event);
+                  Ok(HandleOutput::Weird(format!(
+                     "Missing definition for footnote labeled '{name}'"
+                  )))
+               }
             }
          }
       }
@@ -241,22 +276,17 @@ impl<'e> IntoIterator for State<'e, '_> {
             r#"<section class="footnotes"><ol class="footnotes-list">"#.into(),
          ));
 
-         for (index, _, mut definition_events, backref_indexes) in
-            self.emitted_definitions.into_iter().enumerate().map(
-               |(
-                  index,
-                  EmittedDefinitions {
-                     ref_name: name,
-                     events: evts,
-                     backref_indexes,
-                  },
-               )| { (index + 1, name, evts, backref_indexes) },
-            )
+         for (index, mut emitted) in self
+            .emitted_definitions
+            .into_iter()
+            .enumerate()
+            .map(|(index, emitted)| (index + 1, emitted))
          {
             events.push(Html(format!(r#"<li id="fn{index}">"#).into()));
 
             let backrefs = Html(
-               backref_indexes
+               emitted
+                  .backref_indexes
                   .iter()
                   .enumerate()
                   .map(|(backref_link_index, &backref_index)| {
@@ -275,13 +305,13 @@ impl<'e> IntoIterator for State<'e, '_> {
                   .into(),
             );
 
-            if let Some(End(TagEnd::Paragraph)) = definition_events.last() {
-               let p = definition_events.pop().unwrap();
-               definition_events.push(backrefs);
-               definition_events.push(p);
-               events.append(&mut definition_events);
+            if let Some(End(TagEnd::Paragraph)) = emitted.events.last() {
+               let p = emitted.events.pop().unwrap();
+               emitted.events.push(backrefs);
+               emitted.events.push(p);
+               events.append(&mut emitted.events);
             } else {
-               events.append(&mut definition_events);
+               events.append(&mut emitted.events);
                events.push(backrefs);
             }
 
