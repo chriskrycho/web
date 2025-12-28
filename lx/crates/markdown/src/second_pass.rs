@@ -371,7 +371,7 @@ impl<'e> CodeBlock<'e> {
          }
          Err(arborium::Error::UnsupportedLanguage { language }) => {
             debug!(
-               "could not highlight {} code",
+               "could not highlight code block tagged as `{}`",
                if language.is_empty() {
                   "(unknown)"
                } else {
