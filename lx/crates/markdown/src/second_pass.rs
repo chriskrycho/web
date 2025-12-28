@@ -20,8 +20,6 @@ struct State<'e, 's> {
    events: Vec<pulldown_cmark::Event<'e>>,
    /// Definitions for which a corresponding reference has been found in the document.
    emitted_definitions: Vec<EmittedDefinition<'e>>,
-   /// The order of backref indexes, a document-level consideration.
-   next_backref_index: usize,
 }
 
 struct EmittedDefinition<'e> {
@@ -31,10 +29,16 @@ struct EmittedDefinition<'e> {
    /// it may also be useful for disambiguating references across documents if I find I
    /// need to do that at some point.
    ref_name: CowStr<'e>,
+
    events: Vec<pulldown_cmark::Event<'e>>,
-   /// Document-global backref indexes to use when emitting the back-links to references
-   /// to this definition at the end of the document.
-   backref_indexes: Vec<usize>,
+   /// Can be combined with a backref index to produce a [`Backref`].
+   ///
+   /// This currently duplicates the item's position in the vector of `EmittedDefinition`s
+   /// used to produce, but putting it here avoids relying implicitly on that
+   /// implementation detail!
+   footnote_index: usize,
+   /// The number of back-references for a given footnote definition.
+   backref_index_count: u8,
 }
 
 #[derive(Error, Debug)]
@@ -78,7 +82,6 @@ pub(super) fn second_pass<'e>(
       code_block: None,
       events: vec![],
       emitted_definitions: vec![],
-      next_backref_index: 1,
    };
 
    for event in events {
@@ -196,43 +199,34 @@ impl<'e> State<'e, '_> {
 
                   let previously_emitted = self
                      .emitted_definitions
-                     .iter_mut() // so we can mutate `emitted_def` directly!
-                     .enumerate()
-                     .find(|(_index, emitted)| emitted.ref_name == name);
+                     .iter_mut() // so I can mutate `emitted_def` directly!
+                     .find(|emitted| emitted.ref_name == name);
 
-                  // What this does is weird, but works. Remember: I’m in the midst of
-                  // emitting *references*, not *definitions*, but I need to make sure the
-                  // *definitions* are emitted, so that I can reconstitute them into the
-                  // list at the end. So I need to keep track of two things:
-                  //
-                  // - Which *footnote reference* I am emitting, so that I can build the
-                  //   link correctly.
-                  // - Which *backref* I am emitting, for the same reason, but with a
-                  //   small wrinkle. I use simple numeric indexes for these, but backref
-                  //   indexes are document-order, not per-definition.
-
-                  let backref_index = self.next_backref_index;
-                  self.next_backref_index += 1;
-
-                  let footnote_index = match previously_emitted {
-                     Some((previous_emit_index, emitted_def)) => {
-                        emitted_def.backref_indexes.push(backref_index);
-                        previous_emit_index + 1
+                  let (footnote_index, backref_index) = match previously_emitted {
+                     Some(emitted_def) => {
+                        emitted_def.backref_index_count += 1;
+                        (emitted_def.footnote_index, emitted_def.backref_index_count)
                      }
                      None => {
+                        let footnote_index = self.emitted_definitions.len() + 1;
+                        let backref_index_count = 1;
                         self.emitted_definitions.push(EmittedDefinition {
                            ref_name: name.clone(),
                            events: definition.clone(),
-                           backref_indexes: vec![backref_index],
+                           footnote_index,
+                           backref_index_count,
                         });
-                        self.emitted_definitions.len()
+                        (footnote_index, backref_index_count)
                      }
                   };
 
                   let link = format!(
                      r##"<sup><a href="#{name}" id="{backref}">{footnote_index}</a></sup>"##,
                      name = footnote_ref_name(footnote_index),
-                     backref = footnote_backref_name(backref_index),
+                     backref = footnote_backref_name(Backref {
+                        index: backref_index,
+                        for_footnote_index: footnote_index,
+                     }),
                   );
 
                   self.events.push(Html(link.into()));
@@ -257,8 +251,22 @@ fn footnote_ref_name(index: usize) -> String {
 }
 
 #[inline]
-fn footnote_backref_name(index: usize) -> String {
-   format!("fnref{index}")
+fn footnote_backref_name(backref: Backref) -> String {
+   format!(
+      "fnref{index}{backref_index}",
+      index = backref.for_footnote_index,
+      backref_index = if backref.index == 0 {
+         ""
+      } else {
+         &format!(":{}", backref.index)
+      }
+   )
+}
+
+/// A simple bit of structure for backrefs to use with [`footnote_backref_name`].
+struct Backref {
+   index: u8,
+   for_footnote_index: usize,
 }
 
 impl<'e> IntoIterator for State<'e, '_> {
@@ -276,27 +284,25 @@ impl<'e> IntoIterator for State<'e, '_> {
             r#"<section class="footnotes"><ol class="footnotes-list">"#.into(),
          ));
 
-         for (index, mut emitted) in self
-            .emitted_definitions
-            .into_iter()
-            .enumerate()
-            .map(|(index, emitted)| (index + 1, emitted))
-         {
-            events.push(Html(format!(r#"<li id="fn{index}">"#).into()));
+         for (index, mut emitted) in self.emitted_definitions.into_iter().enumerate() {
+            // Offset by 1 because I make sure the reference numbers and link numbers
+            // match for the sake of URLs matching footnotes!
+            events.push(Html(format!(r#"<li id="fn{}">"#, index + 1).into()));
 
             let backrefs = Html(
-               emitted
-                  .backref_indexes
-                  .iter()
-                  .enumerate()
-                  .map(|(backref_link_index, &backref_index)| {
+               // Back-refs start at 1, and I want to emit a backref for the total count.
+               (1..=emitted.backref_index_count)
+                  .map(|backref_index| {
                      format!(
                         r##"<a href="#{target}" class="fn-backref">↩{suffix}</a>"##,
-                        target = footnote_backref_name(backref_index),
-                        suffix = if backref_link_index == 0 {
+                        target = footnote_backref_name(Backref {
+                           index: backref_index,
+                           for_footnote_index: emitted.footnote_index,
+                        }),
+                        suffix = if backref_index == 1 {
                            String::new()
                         } else {
-                           format!("<sup>{}</sup>", backref_link_index + 1)
+                           format!("<sup>({})</sup>", backref_index)
                         }
                      )
                   })
