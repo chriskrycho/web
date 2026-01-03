@@ -4,6 +4,7 @@ use arborium::Highlighter;
 use log::{debug, error};
 use pulldown_cmark::{CodeBlockKind, CowStr, Tag, TagEnd};
 use thiserror::Error;
+use unindent::unindent;
 
 use super::FootnoteDefinitions;
 use super::first_pass;
@@ -87,7 +88,7 @@ pub(super) fn second_pass<'e>(
    for event in events {
       // If I ever extract/generalize this, I will want to use some kind of log level
       // handling instead of just always emitting the error.
-      if let HandleOutput::Weird(warning) = state.handle(event, &rewrite)? {
+      if let HandledEvent::Weirdly(warning) = state.handle(event, &rewrite)? {
          error!("{warning}");
       }
    }
@@ -95,9 +96,9 @@ pub(super) fn second_pass<'e>(
    Ok(state.into_iter())
 }
 
-enum HandleOutput {
-   Normal,
-   Weird(String),
+enum HandledEvent {
+   Normally,
+   Weirdly(String),
 }
 
 impl<'e> State<'e, '_> {
@@ -105,7 +106,7 @@ impl<'e> State<'e, '_> {
       &mut self,
       event: first_pass::Event<'e>,
       rewrite: &impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
-   ) -> Result<HandleOutput, Error> {
+   ) -> Result<HandledEvent, Error> {
       use pulldown_cmark::Event::*;
 
       match event {
@@ -115,7 +116,7 @@ impl<'e> State<'e, '_> {
                match self.code_block {
                   Some(ref mut code_block) => {
                      code_block.highlight(text, self.highlighter)?;
-                     Ok(HandleOutput::Normal)
+                     Ok(HandledEvent::Normally)
                   }
                   None => {
                      let rewritten =
@@ -124,20 +125,20 @@ impl<'e> State<'e, '_> {
                            original: text.to_string(),
                         })?;
                      self.events.push(Html(rewritten.into()));
-                     Ok(HandleOutput::Normal)
+                     Ok(HandledEvent::Normally)
                   }
                }
             }
 
             Start(Tag::CodeBlock(kind)) => {
                self.code_block = CodeBlock::start(kind);
-               Ok(HandleOutput::Normal)
+               Ok(HandledEvent::Normally)
             }
 
             End(TagEnd::CodeBlock) => match self.code_block.take() {
                Some(code_block) => {
                   self.events.append(&mut code_block.end());
-                  Ok(HandleOutput::Normal)
+                  Ok(HandledEvent::Normally)
                }
                None => Err(Error::FinishedNonStartedCodeBlock),
             },
@@ -148,7 +149,7 @@ impl<'e> State<'e, '_> {
                   latex2mathml::DisplayStyle::Block,
                )?;
                self.events.push(Html(math.into()));
-               Ok(HandleOutput::Normal)
+               Ok(HandledEvent::Normally)
             }
 
             InlineMath(content) => {
@@ -157,7 +158,7 @@ impl<'e> State<'e, '_> {
                   latex2mathml::DisplayStyle::Inline,
                )?;
                self.events.push(Html(math.into()));
-               Ok(HandleOutput::Normal)
+               Ok(HandledEvent::Normally)
             }
 
             // If we find a footnote reference here, something has gone wrong: we should
@@ -169,7 +170,7 @@ impl<'e> State<'e, '_> {
             // Everything else can just be emitted exactly as is.
             other => {
                self.events.push(other.clone());
-               Ok(HandleOutput::Normal)
+               Ok(HandledEvent::Normally)
             }
          },
 
@@ -230,12 +231,12 @@ impl<'e> State<'e, '_> {
                   );
 
                   self.events.push(Html(link.into()));
-                  Ok(HandleOutput::Normal)
+                  Ok(HandledEvent::Normally)
                }
                None => {
                   let event = Text(format!("[^{name}]").into());
                   self.events.push(event);
-                  Ok(HandleOutput::Weird(format!(
+                  Ok(HandledEvent::Weirdly(format!(
                      "Missing definition for footnote labeled '{name}'"
                   )))
                }
@@ -281,7 +282,14 @@ impl<'e> IntoIterator for State<'e, '_> {
       if !self.emitted_definitions.is_empty() {
          events.push(Rule);
          events.push(Html(
-            r#"<section class="footnotes"><ol class="footnotes-list">"#.into(),
+            unindent(
+               r#"
+               <section class="footnotes">
+                  <h2><a name="notes"></a>Notes</h2>
+                  <ol class="footnotes-list">
+            "#,
+            )
+            .into(),
          ));
 
          for (index, mut emitted) in self.emitted_definitions.into_iter().enumerate() {

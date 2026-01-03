@@ -21,3 +21,4 @@ pulldown-cmark = { version = "0.13", default-features = false, features = [
 ] }
 thiserror = { workspace = true }
 serde = { workspace = true }
+unindent = "0.2.4"
