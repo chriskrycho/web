@@ -1,0 +1,6 @@
+footer {
+   display: grid;
+   grid-template-columns: subgrid;
+   grid-column: 1 / -1;
+   background: var(--footer-bg);
+}

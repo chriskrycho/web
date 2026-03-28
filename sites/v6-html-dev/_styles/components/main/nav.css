@@ -1,0 +1,17 @@
+main nav {
+   font-family: var(--sans);
+   font-weight: 300;
+   text-transform: uppercase;
+   letter-spacing: 0.3;
+   font-size: 0.9em;
+
+   align-self: center;
+   grid-column: 4 / span 2;
+}
+
+main nav ul {
+   list-style: none;
+   display: flex;
+   gap: calc(var(--padding) * 2);
+   justify-content: end;
+}

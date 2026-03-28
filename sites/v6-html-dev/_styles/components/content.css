@@ -1,0 +1,119 @@
+@layer content {
+   content {
+      grid-column: 2 / span 3;
+
+      font-family: var(--serif);
+      font-size: 1em;
+      text-wrap: pretty;
+
+      a:any-link {
+         text-decoration-skip-ink: auto;
+         text-decoration-thickness: 1pt;
+         transition:
+            text-decoration-color var(--transition),
+            color var(--transition);
+      }
+
+      a:link {
+         color: var(--link);
+         text-decoration-color: var(--link-underline);
+      }
+
+      a:link:hover,
+      a:link:active {
+         color: var(--link-hover);
+         text-decoration-color: var(--link-hover-underline);
+      }
+
+      a:visited {
+         color: var(--link-visited);
+         text-decoration-color: var(--link-visited-underline);
+      }
+
+      a:visited:hover,
+      a:visited:active {
+         color: var(--link-visited-hover);
+         text-decoration-color: var(--link-visited-hover-underline);
+      }
+   }
+}
+
+/* old */
+.content {
+   --max-width: 35rem;
+
+   p + p {
+      text-indent: 1lh;
+      margin-top: 0;
+   }
+
+   ul,
+   ol {
+      margin-block: 1lh;
+      padding-inline-start: 1lh;
+      margin-trim: block;
+   }
+
+   abbr {
+      font-variant: all-small-caps;
+      letter-spacing: 0.05em;
+   }
+
+   h2 {
+      font-family: var(--serif-alt);
+      font-weight: 600;
+      font-size: 2rem;
+   }
+
+   h3 {
+      font-family: var(--serif-alt);
+      font-weight: 500;
+      font-size: 1.4rem;
+   }
+
+   h4 {
+      font-family: var(--serif-alt);
+      font-weight: 400;
+      font-size: 1.2rem;
+   }
+
+   h5 {
+      font-family: var(--sans);
+      font-weight: 500;
+      font-size: 1rem;
+   }
+
+   :not(pre) code {
+      background: var(--code-bg);
+      border: 0.5px solid var(--code-border);
+      border-radius: 3px;
+      padding: 0.5px 0.25lh;
+      line-height: 1;
+   }
+
+   pre:has(code) {
+      margin: 0.5lh -0.75lh;
+      padding: 0.5lh 0.75lh;
+      overflow-x: auto;
+      background: var(--code-bg);
+      border-left: 2pt solid var(--code-border);
+   }
+
+   /* ----- Special content blocks ----- */
+   --special-margin: 0.75lh -0.75lh;
+   --special-padding: 0.25lh 0.75lh;
+
+   blockquote,
+   aside,
+   .qualifiers,
+   nav,
+   .note,
+   .footnotes {
+      font-family: var(--sans);
+      font-weight: 350;
+      font-size-adjust: ex-height 0.48;
+      margin: var(--special-margin);
+      padding: var(--special-padding);
+      line-height: var(--lh-sans);
+   }
+}

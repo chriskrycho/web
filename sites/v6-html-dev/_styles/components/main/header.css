@@ -1,0 +1,30 @@
+main header {
+   grid-column: 1 / span 2;
+   align-self: center;
+   display: flex;
+   gap: var(--padding);
+   align-items: baseline;
+   margin-top: calc(var(--padding) * 4);
+   margin-bottom: calc(var(--padding) * 4);
+}
+
+main header h1 {
+   font-family: var(--serif-alt);
+   font-weight: 500;
+   font-size: 1.4rem;
+   text-align: right;
+
+   grid-column: 1 / span 1;
+}
+
+main header h2 {
+   font-family: var(--serif);
+   font-weight: 400;
+   font-size: 1.1rem;
+
+   grid-column: 2 / span 1;
+
+   span {
+      font-style: italic;
+   }
+}

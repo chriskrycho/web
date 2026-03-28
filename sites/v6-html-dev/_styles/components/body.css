@@ -1,0 +1,5 @@
+body {
+   background: var(--bg-body);
+   border-block: var(--padding) solid var(--body-border);
+   margin: var(--padding) 0;
+}

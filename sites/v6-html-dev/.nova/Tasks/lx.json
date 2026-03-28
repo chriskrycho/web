@@ -1,0 +1,16 @@
+{
+  "actions" : {
+    "build" : {
+      "enabled" : true,
+      "script" : "lx publish ."
+    },
+    "clean" : {
+      "enabled" : true,
+      "script" : "rm -rf public"
+    },
+    "run" : {
+      "enabled" : true,
+      "script" : "lx develop ."
+    }
+  }
+}

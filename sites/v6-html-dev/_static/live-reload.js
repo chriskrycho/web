@@ -1,0 +1,109 @@
+'use strict';
+
+const Level = {
+   Off: 0,
+   Error: 1,
+   Warn: 2,
+   Info: 3,
+   Debug: 4,
+   Trace: 5,
+};
+
+/** @type {number | null} */
+let reconnectInterval = null;
+
+/** @type {WebSocket | null} */
+let ws = null;
+
+connect();
+
+function connect() {
+   // TODO: this *must* be injected serve-side because otherwise the
+   // port handling can never work on anything *but* the default.
+   ws = new WebSocket('ws://localhost:24747/live-reload');
+   debug('created WebSocket instance');
+
+   ws.addEventListener('open', (_event) => {
+      debug('WebSocket connection opened');
+      if (reconnectInterval) {
+         clearInterval(reconnectInterval);
+         reconnectInterval = null;
+      }
+   });
+
+   ws.addEventListener('error', (event) => {
+      error('error:', event);
+   });
+
+   ws.addEventListener('close', (closeEvent) => {
+      let message = `closed because ${closeEvent.reason}`;
+      if (closeEvent.wasClean) {
+         debug(message);
+      } else {
+         // might handle this distinctively for expected closures.
+         error(message, closeEvent.code);
+      }
+
+      if (!reconnectInterval) {
+         info('connection closed');
+         reconnectInterval = setInterval(() => {
+            debug('attempting to reconnect…');
+            connect();
+         }, 5_000);
+      }
+   });
+
+   ws.addEventListener('message', (message) => {
+      console.log('got message', message);
+      // TODO:
+      //
+      // 1. Update the Serde config to send this as `type: 'Reload', values: ...`.
+      // 2. Only reload if the path is relevant.
+      let payload;
+      try {
+         payload = JSON.parse(message.data);
+         debug('Parsed JSON payload of WebSocket message', payload);
+      } catch (e) {
+         error('Error deserializing WebSocket message', e);
+      }
+
+      if (payload.Reload) {
+         debug('Specified reload paths were:', message.data.Reload);
+         location.reload();
+      }
+   });
+
+   debug('added all WebSocket listeners');
+}
+
+function setLogLevel(value) {
+   globalThis.localStorage.setItem('lx:logLevel', value);
+}
+
+function resetLogLevel() {
+   globalThis.localStorage.clear();
+}
+
+function error(...messages) {
+   if (logLevel() >= Level.Error) console.error('[Error]', ...messages);
+}
+
+function warn(...messages) {
+   if (logLevel() >= Level.Warn) console.warn('[Warning]', ...messages);
+}
+
+function info(...messages) {
+   if (logLevel() >= Level.Info) console.info('[Info]', ...messages);
+}
+
+function debug(...messages) {
+   if (logLevel() >= Level.Debug) console.info('[Debug]', ...messages);
+}
+
+function trace(...messages) {
+   if (logLevel() >= Level.Debug) console.info('[Trace]', ...messages);
+}
+
+function logLevel() {
+   return globalThis.localStorage.getItem('lx:logLevel') ?? 'info';
+}

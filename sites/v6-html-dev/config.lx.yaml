@@ -1,0 +1,30 @@
+url: 'https://v6.chriskrycho.com/'
+repo: 'https://github.com/chriskrycho/v6.chriskrycho.com'
+title: { normal: 'Sympolymathesy', stylized: 'Sym·poly·mathesy' }
+subtitle: 'by Chris Krycho'
+description: 'Learning in public: on theology, technology, ethics, software, politics, art, and more.'
+author:
+  name: 'Chris Krycho'
+  email: 'hello@chriskrycho.com'
+  links:
+    email: mailto:hello@chriskrycho.com
+    GitHub: https://github.com/chriskrycho
+    Soundcloud: https://soundcloud.com/chriskrycho
+    LinkedIn: https://www.linkedin.com/in/chriskrycho
+    Bluesky: https://bsky.app/profile/chriskrycho.com
+    Mastodon: https://mastodon.social/@chriskrycho
+output: public
+nav:
+  - { type: 'page', title: 'Archive', path: '/archive/' }
+  - { type: 'separator' }
+  - { type: 'page', title: 'Essays', path: '/essays/' }
+  - { type: 'page', title: 'Journal', path: '/journal/' }
+  - { type: 'page', title: 'Library', path: '/library/' }
+  - { type: 'page', title: 'Notes', path: '/notes/' }
+  - { type: 'page', title: 'Elsewhere', path: '/elsewhere/' }
+  - { type: 'separator' }
+  - { type: 'page', title: 'About', path: '/about/' }
+  - { type: 'page', title: 'Curriculum Vitae', path: '/cv/' }
+  - { type: 'separator' }
+  - { type: 'page', title: 'Colophon', path: '/colophon/' }
+image: sympolymathesy-social.png

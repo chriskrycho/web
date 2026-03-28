@@ -1,0 +1,9 @@
+.grid-root {
+   display: grid;
+   grid: auto / repeat(6, minmax(0, 1fr));
+   gap: var(--padding);
+
+   max-width: 1280px;
+   margin-inline: auto;
+   padding: 0 var(--padding);
+}

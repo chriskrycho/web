@@ -1,0 +1,7 @@
+/* TODO: include fancier bits! */
+
+.note {
+   background: var(--note-bg);
+   color: var(--note-fg);
+   border-top: 2pt solid var(--note-border);
+}
