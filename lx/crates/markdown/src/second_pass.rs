@@ -372,10 +372,15 @@ impl<'e> CodeBlock<'e> {
       text: CowStr<'_>,
       highlighter: &mut Highlighter,
    ) -> Result<(), Error> {
-      let highlighted_if_possible = match highlighter.highlight(&self.name, &text) {
+      enum Output {
+         Highlighted(String),
+         Plain(String),
+      }
+
+      let highlight_output = match highlighter.highlight(&self.name, &text) {
          Ok(s) => {
             debug!("highlighted some {} code", self.name);
-            s
+            Output::Highlighted(s)
          }
          Err(arborium::Error::UnsupportedLanguage { language }) => {
             debug!(
@@ -386,14 +391,17 @@ impl<'e> CodeBlock<'e> {
                   &language
                }
             );
-            text.to_string()
+            Output::Plain(text.to_string())
          }
          Err(highlight_err) => return Err(highlight_err.into()),
       };
 
-      self
-         .events
-         .push(pulldown_cmark::Event::Html(highlighted_if_possible.into()));
+      self.events.push({
+         match highlight_output {
+            Output::Highlighted(html) => pulldown_cmark::Event::Html(html.into()),
+            Output::Plain(text) => pulldown_cmark::Event::Text(text.into()),
+         }
+      });
 
       Ok(())
    }

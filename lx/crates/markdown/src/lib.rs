@@ -221,3 +221,42 @@ fn bad_prepare_state<T>(state: &impl Debug, context: &impl Debug) -> Result<T, E
       context: format!("{context:?}"),
    }))
 }
+
+#[cfg(test)]
+mod tests {
+   use super::render;
+   use arborium::Highlighter;
+
+   fn render_html(src: &str) -> String {
+      let (_, rendered) =
+         render(src, &mut Highlighter::new(), |text| Ok(text.to_string())).unwrap();
+      rendered.html().to_string()
+   }
+
+   #[test]
+   fn escapes_html_in_empty_fenced_code_blocks() {
+      let html = render_html("```\n<?\n```\n");
+
+      assert_eq!(html, "<pre lang=\"\"><code class=\"\">&lt;?\n</code></pre>");
+   }
+
+   #[test]
+   fn escapes_html_in_unsupported_fenced_code_blocks() {
+      let html = render_html("```wat\n<?\n```\n");
+
+      assert_eq!(
+         html,
+         "<pre lang=\"wat\"><code class=\"wat\">&lt;?\n</code></pre>"
+      );
+   }
+
+   #[test]
+   fn preserves_highlighter_html_for_supported_code_blocks() {
+      let html = render_html("```rust\nfn main() {}\n```\n");
+
+      assert_eq!(
+         html,
+         "<pre lang=\"rust\"><code class=\"rust\"><a-k>fn</a-k> <a-f>main</a-f><a-p>()</a-p> <a-p>{}</a-p>\n</code></pre>"
+      );
+   }
+}
