@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "codanna": {
-      "command": "codanna",
-      "args": ["serve", "--watch"]
-    }
-  }
-}
