@@ -73,7 +73,7 @@ impl Metadata {
          .or(item.title)
          .ok_or_else(|| Error::MissingRequiredField { name: "title" })?;
 
-      let render = |s: String| Rendered::markdown(&s);
+      let render = |s: String| Rendered::markdown(&s, None);
 
       let metadata = Metadata {
          title,
@@ -147,10 +147,8 @@ pub struct Rendered {
 }
 
 impl Rendered {
-   fn markdown(src: &str) -> Result<Rendered, Error> {
-      // TODO: can I avoid instantiating this like this? Hmmm.
-      let mut highlighter = arborium::Highlighter::new();
-      lx_md::render(src, &mut highlighter, |s| Ok(s.to_string()))
+   fn markdown(src: &str, highlighter: Option<&mut arborium::Highlighter>) -> Result<Rendered, Error> {
+      lx_md::render(src, highlighter, |s| Ok(s.to_string()))
          .map(|(_, rendered)| Rendered {
             source: src.to_owned(),
             html: rendered.html().to_string(),

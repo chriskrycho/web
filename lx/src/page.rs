@@ -59,7 +59,7 @@ impl Prepared<'_> {
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
    ) -> Result<Rendered, Error> {
       Ok(Rendered {
-         content: lx_md::emit(self.to_render, highlighter, |text| {
+         content: lx_md::emit(self.to_render, Some(highlighter), |text| {
             rewrite(text, &self.data)
          })?,
          date: self.date,

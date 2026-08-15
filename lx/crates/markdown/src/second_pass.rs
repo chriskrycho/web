@@ -16,7 +16,7 @@ use super::first_pass;
 /// 3. Performing any template-language-type rewriting of text nodes.
 struct State<'e, 's> {
    footnote_definitions: FootnoteDefinitions<'e>,
-   highlighter: &'s mut Highlighter,
+   highlighter: Option<&'s mut Highlighter>,
    code_block: Option<CodeBlock<'e>>,
    events: Vec<pulldown_cmark::Event<'e>>,
    /// Definitions for which a corresponding reference has been found in the document.
@@ -73,7 +73,7 @@ pub enum Error {
 
 pub(super) fn second_pass<'e>(
    footnote_definitions: FootnoteDefinitions<'e>,
-   highlighter: &mut Highlighter,
+   highlighter: Option<&mut Highlighter>,
    events: Vec<first_pass::Event<'e>>,
    rewrite: impl Fn(&str) -> Result<String, Box<dyn error::Error + Send + Sync>>,
 ) -> Result<impl Iterator<Item = pulldown_cmark::Event<'e>>, Error> {
@@ -113,12 +113,12 @@ impl<'e> State<'e, '_> {
          first_pass::Event::Basic(basic) => match basic {
             Text(text) => {
                // We do *not* want to rewrite text in code blocks!
-               match self.code_block {
-                  Some(ref mut code_block) => {
-                     code_block.highlight(text, self.highlighter)?;
+               match (self.code_block.as_mut(), self.highlighter.as_mut()) {
+                  (Some(code_block), Some(highlighter)) => {
+                     code_block.highlight(text, highlighter)?;
                      Ok(HandledEvent::Normally)
                   }
-                  None => {
+                  _ => {
                      let rewritten =
                         rewrite(text.as_ref()).map_err(|source| Error::Rewrite {
                            source,
@@ -127,7 +127,7 @@ impl<'e> State<'e, '_> {
                      self.events.push(Html(rewritten.into()));
                      Ok(HandledEvent::Normally)
                   }
-               }
+            }
             }
 
             Start(Tag::CodeBlock(kind)) => {

@@ -17,7 +17,7 @@ pub fn convert(
       .read_to_string(&mut src)
       .map_err(|source| Error::ReadBuffer { source })?;
 
-   let (meta, rendered) = lx_md::render(&src, &mut arborium::Highlighter::new(), |s| {
+   let (meta, rendered) = lx_md::render(&src, Some(&mut arborium::Highlighter::new()), |s| {
       Ok(s.to_string())
    })
    .map_err(Error::from)?;
@@ -98,7 +98,7 @@ fn yaml_to_html(source: &Value, output: &mut Box<dyn Write>) -> Result<(), Error
       Value::Number(number) => write(&number.to_string(), output),
       // TODO: this could be more elegantly done with a re-export of the simpler renderer!
       Value::String(string) => write(
-         lx_md::render(string, &mut arborium::Highlighter::new(), |s| {
+         lx_md::render(string, Some(&mut arborium::Highlighter::new()), |s| {
             Ok(s.to_string())
          })
          .expect("Any basic YAML string can be rendered")

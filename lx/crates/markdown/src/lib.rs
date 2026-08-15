@@ -87,7 +87,7 @@ lazy_static! {
 
 pub fn render(
    src: &str,
-   highlighter: &mut Highlighter,
+   highlighter: Option<&mut Highlighter>,
    rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
 ) -> Result<(Option<String>, Rendered), Error> {
    let prepared = prepare(src)?;
@@ -100,7 +100,7 @@ pub fn render(
 
 pub fn emit(
    to_render: ToRender,
-   highlighter: &mut Highlighter,
+   highlighter: Option<&mut Highlighter>,
    rewrite: impl Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
 ) -> Result<Rendered, RenderError> {
    let ToRender {
@@ -229,7 +229,7 @@ mod tests {
 
    fn render_html(src: &str) -> String {
       let (_, rendered) =
-         render(src, &mut Highlighter::new(), |text| Ok(text.to_string())).unwrap();
+         render(src, Some(&mut Highlighter::new()), |text| Ok(text.to_string())).unwrap();
       rendered.html().to_string()
    }
 
