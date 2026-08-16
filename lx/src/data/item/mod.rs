@@ -147,7 +147,10 @@ pub struct Rendered {
 }
 
 impl Rendered {
-   fn markdown(src: &str, highlighter: Option<&mut arborium::Highlighter>) -> Result<Rendered, Error> {
+   fn markdown(
+      src: &str,
+      highlighter: Option<&mut arborium::Highlighter>,
+   ) -> Result<Rendered, Error> {
       lx_md::render(src, highlighter, |s| Ok(s.to_string()))
          .map(|(_, rendered)| Rendered {
             source: src.to_owned(),

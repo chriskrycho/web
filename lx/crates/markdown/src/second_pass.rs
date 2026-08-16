@@ -1,4 +1,5 @@
 use std::error;
+use std::fmt::Write;
 
 use arborium::Highlighter;
 use log::{debug, error};
@@ -127,7 +128,7 @@ impl<'e> State<'e, '_> {
                      self.events.push(Html(rewritten.into()));
                      Ok(HandledEvent::Normally)
                   }
-            }
+               }
             }
 
             Start(Tag::CodeBlock(kind)) => {
@@ -253,15 +254,19 @@ fn footnote_ref_name(index: usize) -> String {
 
 #[inline]
 fn footnote_backref_name(backref: Backref) -> String {
-   format!(
-      "fnref{index}{backref_index}",
-      index = backref.for_footnote_index,
-      backref_index = if backref.index == 0 {
-         ""
-      } else {
-         &format!(":{}", backref.index)
-      }
-   )
+   let mut name = format!("fnref{}", backref.for_footnote_index);
+
+   if backref.index != 0 {
+      // I cannot see a way this would fail: the minimum length of a normal `String`
+      // allocation should *always* be sufficient for this. Allocation failure would be
+      // the only potential issue, and if *that* happens, it should happen when allocating
+      // the string in the first place. There should never be reallocation at this site,
+      // because the normal minimum string allocation should be plenty long.
+      write!(name, "{}", backref.index)
+         .expect("Writing to a `String` (for a footnote name) should always succeed");
+   }
+
+   name
 }
 
 /// A simple bit of structure for backrefs to use with [`footnote_backref_name`].

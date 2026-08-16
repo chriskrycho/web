@@ -17,10 +17,11 @@ pub fn convert(
       .read_to_string(&mut src)
       .map_err(|source| Error::ReadBuffer { source })?;
 
-   let (meta, rendered) = lx_md::render(&src, Some(&mut arborium::Highlighter::new()), |s| {
-      Ok(s.to_string())
-   })
-   .map_err(Error::from)?;
+   let (meta, rendered) =
+      lx_md::render(&src, Some(&mut arborium::Highlighter::new()), |s| {
+         Ok(s.to_string())
+      })
+      .map_err(Error::from)?;
 
    // TODO: in the case of wrapping HTML, the question is what I want this *for*. In the
    //   case of BBEdit or Marked or similar, I actually just want to be able to separately

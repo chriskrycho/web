@@ -228,8 +228,10 @@ mod tests {
    use arborium::Highlighter;
 
    fn render_html(src: &str) -> String {
-      let (_, rendered) =
-         render(src, Some(&mut Highlighter::new()), |text| Ok(text.to_string())).unwrap();
+      let (_, rendered) = render(src, Some(&mut Highlighter::new()), |text| {
+         Ok(text.to_string())
+      })
+      .unwrap();
       rendered.html().to_string()
    }
 
