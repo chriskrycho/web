@@ -363,6 +363,10 @@ pub enum Error {
    #[error(transparent)]
    Glob { source: glob::GlobError },
 
+   // Doesn't bother with the source error because it's [`std::path::StripPrefixError`],
+   // which is fundamentally uninteresting (it's just a tuple struct with a private
+   // internal `()` so it cannot be constructed other than by `strip_prefix`, and `camino`
+   // delegates to it.
    #[error("could not strip prefix '{prefix}' from path '{path}'")]
    StripPrefix {
       prefix: Utf8PathBuf,
