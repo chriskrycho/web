@@ -15,7 +15,8 @@ license = "BlueOak-1.0.0"
 
 [workspace.dependencies]
 anyhow = "1"
-arborium = { version = "2.18", features = ["lang-rust", "lang-css", "lang-scss", "lang-markdown", "lang-javascript", "lang-typescript", "lang-toml", "lang-bash", "lang-zsh", "lang-fish"] } # specify `features` for specific languages
+ # specify `features` for specific languages
+arborium = { version = "2.18" }
 clap = { version = "4", features = ["unicode", "cargo", "derive"] }
 clap_complete = "4"
 count-md = "0.2"
