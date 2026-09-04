@@ -5,14 +5,10 @@ use std::io::Write;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use log::{debug, trace};
-use minijinja::Environment;
-use serde::Serialize;
+use minijinja::{Environment, context};
 use thiserror::Error;
 
-use crate::{
-   data::{config::Config, item::Metadata},
-   page::{Item, RootedPath, Source},
-};
+use crate::{data::config::Config, page::Item};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -75,20 +71,9 @@ where
 pub fn render(
    env: &Environment,
    item: &Item,
-   site: &Config,
-   into: impl Write,
+   config: &Config,
+   dest: impl Write,
 ) -> Result<(), Error> {
-   /// Local struct because I just need a convenient way to provide serializable data to
-   /// pass as the context for minijinja, and all of these pieces need to be in it.
-   #[derive(Serialize)]
-   struct Context<'a> {
-      content: &'a str,
-      data: &'a Metadata,
-      config: &'a Config,
-      path: &'a RootedPath,
-      source: &'a Source,
-   }
-
    debug!(
       "Rendering page '{}' ({:?}) with layout '{}'",
       item.title(),
@@ -96,26 +81,24 @@ pub fn render(
       item.layout()
    );
 
-   let tpl =
-      env.get_template(item.layout())
-         .map_err(|source| Error::MissingTemplate {
-            source,
-            path: item.source().path.clone(),
-         })?;
-
-   tpl.render_to_write(
-      Context {
-         content: item.content().html(),
-         data: item.data(),
-         config: site,
-         path: item.path(),
-         source: item.source(),
-      },
-      into,
-   )
-   .map(|_state| { /* throw it away for now; return it if we need it later */ })
-   .map_err(|source| Error::Render {
-      source,
-      path: item.source().path.clone(),
-   })
+   env.get_template(item.layout())
+      .map_err(|source| Error::MissingTemplate {
+         source,
+         path: item.source().path.clone(),
+      })?
+      .render_captured_to(
+         context! {
+            content => item.content().html(),
+            data => item.data(),
+            config,
+            path => item.path(),
+            source => item.source(),
+         },
+         dest,
+      )
+      .map(|_captured| ()) // throw it away for now; return it if we need it later
+      .map_err(|source| Error::Render {
+         source,
+         path: item.source().path.clone(),
+      })
 }

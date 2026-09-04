@@ -3,7 +3,7 @@ use std::{error, fmt, fs, io};
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use lazy_static::lazy_static;
-use log::{debug, error, trace};
+use log::{debug, trace};
 use rayon::{iter::Either, prelude::*};
 use thiserror::Error;
 

@@ -4,6 +4,7 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Deserialize, Serialize)]
+#[repr(transparent)]
 pub struct Id(uuid::Uuid);
 
 #[derive(Debug, Deserialize, Serialize)]
