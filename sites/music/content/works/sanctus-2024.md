@@ -16,8 +16,10 @@ work:
             Pandora: https://www.pandora.com/artist/chris-krycho/sanctus-for-epiphany-feat-holy-trinity-anglican-church-choir/ALPkJ2twjdv9rPg
 
         buy:
+            Subvert: https://www.subvert.fm/chriskrycho/tracks/sanctus-for-epiphany-htac-choir
             Bandcamp: https://chriskrycho.bandcamp.com/track/sanctus-for-epiphany
             iTunes: https://music.apple.com/us/album/sanctus-for-epiphany-feat-holy-trinity-anglican-church/1797951226?i=1797951379
+            Amazon: https://www.amazon.com/dp/B0DXQX8WZ7
 
     video:
         yt: I4nuJDmWeyw

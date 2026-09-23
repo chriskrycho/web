@@ -7,8 +7,11 @@ work:
 
     listen:
         buy:
+            Subvert: https://www.subvert.fm/chriskrycho/tracks/the-desert
             Bandcamp: https://chriskrycho.bandcamp.com/track/the-desert
             iTunes: https://music.apple.com/us/album/the-desert-single/1731401721?uo=4&app=itunes&at=1001lry3&ct=dashboard
+            Amazon: https://www.amazon.com/dp/B0CVMWZGKG/
+
         stream:
             Spotify: https://open.spotify.com/track/2jrOKyTyvgGGJi7faqgUVx
             Apple Music: https://music.apple.com/us/album/the-desert/1731401721?i=1731401722&app=music

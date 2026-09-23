@@ -8,8 +8,10 @@ work:
 
     listen:
         buy:
+            Subvert: https://www.subvert.fm/chriskrycho/holy-saturday-ep
             Bandcamp: https://chriskrycho.bandcamp.com/album/holy-saturday-ep
             iTunes: https://music.apple.com/us/album/holy-saturday-ep-single/1807563065
+            Amazon: https://www.amazon.com/dp/B0F491C8LN
         stream:
             Spotify: https://open.spotify.com/album/6KrsjVU0XYWsPySVw9EfeS?si=lLnfTlJaQ1uTsBYmNMl92g
             Apple Music: https://music.apple.com/us/album/holy-saturday-ep-single/1807563065

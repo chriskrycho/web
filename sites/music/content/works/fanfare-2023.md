@@ -6,17 +6,19 @@ work:
     duration: "02:27"
 
     listen:
-      buy:
-          Bandcamp: https://chriskrycho.bandcamp.com/track/fanfare-for-a-new-era-of-american-spaceflight
-          iTunes: https://music.apple.com/us/album/fanfare-for-a-new-era-of-american-spaceflight/1679126526?uo=4&app=itunes&at=1001lry3&ct=dashboard
+        buy:
+            Subvert: https://www.subvert.fm/chriskrycho/tracks/fanfare-for-a-new-era-of-american-spaceflight
+            Bandcamp: https://chriskrycho.bandcamp.com/track/fanfare-for-a-new-era-of-american-spaceflight
+            iTunes: https://music.apple.com/us/album/fanfare-for-a-new-era-of-american-spaceflight/1679126526?uo=4&app=itunes&at=1001lry3&ct=dashboard
+            Amazon: https://www.amazon.com/dp/B0F491C8LN/
 
-      stream:
-          Spotify: https://open.spotify.com/album/3AmLQs65dzB4yr6mz0dUxB
-          Apple Music: https://music.apple.com/us/album/fanfare-for-a-new-era-of-american-spaceflight/1679126526?app=music
-          YouTube Music: https://music.youtube.com/browse/MPREb_id28BgMVrIR
-          Tidal: https://tidal.com/browse/track/285018818
-          Amazon Music: https://music.amazon.com/albums/B0BZK5RG34
-          Pandora: https://www.pandora.com/artist/chris-krycho/fanfare-for-a-new-era-of-american-spaceflight-feat-budapest-scoring-orchestra/AL2hP7P9jbPv4JZ
+        stream:
+            Spotify: https://open.spotify.com/album/3AmLQs65dzB4yr6mz0dUxB
+            Apple Music: https://music.apple.com/us/album/fanfare-for-a-new-era-of-american-spaceflight/1679126526?app=music
+            YouTube Music: https://music.youtube.com/browse/MPREb_id28BgMVrIR
+            Tidal: https://tidal.com/browse/track/285018818
+            Amazon Music: https://music.amazon.com/albums/B0BZK5RG34
+            Pandora: https://www.pandora.com/artist/chris-krycho/fanfare-for-a-new-era-of-american-spaceflight-feat-budapest-scoring-orchestra/AL2hP7P9jbPv4JZ
 
     video:
         yt: l_rRCCHczuU
