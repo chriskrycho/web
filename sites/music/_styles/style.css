@@ -37,10 +37,13 @@ body {
    gap: var(--grid-base);
 }
 
-.newsletter,
+.newsletter {
+   grid-column-end: span 4;
+}
+
 .music-services,
 .social-media {
-   grid-column-end: span 4;
+   grid-column-end: span 2;
 }
 
 .services {
