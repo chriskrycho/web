@@ -1,13 +1,7 @@
 @import '../../_shared/_styles/_index.css';
 
 body {
-   background-color: var(--blue-4);
-}
-
-@media screen and (prefers-color-scheme: dark) {
-   body {
-      background-color: var(--gold);
-   }
+   background-color: var(--gold);
 }
 
 /* Not bothering extracting this until I have a *reason* to do so. */

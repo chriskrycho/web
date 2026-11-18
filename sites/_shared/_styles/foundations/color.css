@@ -27,7 +27,7 @@
    --brown: oklch(35.71% 0.033 55.12);
 
    --bg: var(--bluish-white);
-   --bg-secondary: var(--light-blue);
+   --bg-secondary: var(--bright-blue-2);
    --bg-alt: var(--blue);
    --fg: var(--blue);
    --fg-secondary: var(--blue-2);

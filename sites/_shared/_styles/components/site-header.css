@@ -11,13 +11,13 @@
    a,
    a:link,
    a:visited {
-      color: var(--blue-n);
+      color: var(--golden-white);
       text-decoration: none;
    }
 
    a:hover,
    a:active {
-      color: var(--bright-blue-0);
+      color: var(--light-blue-0);
       text-decoration: underline;
    }
 
