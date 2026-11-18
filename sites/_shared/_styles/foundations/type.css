@@ -6,7 +6,7 @@
    --sanomat-sans-stack: 'Sanomat Sans Text';
 
    --text: 'Frame Text';
-   --text-lh: 1.4;
+   --text-lh: 1.55;
    --text-weight: 400;
    --text-weight-bold: 600;
 
@@ -33,7 +33,6 @@
 
 @media screen and (prefers-color-scheme: dark) {
    :root {
-      --text-lh: 1.55;
       --text-alt-lh: 1.4;
    }
 }

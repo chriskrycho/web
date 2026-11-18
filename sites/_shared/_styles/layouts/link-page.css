@@ -55,6 +55,22 @@
 
    .background {
       grid-column: 1 / -1;
+
+      p,
+      ul {
+         max-width: 40rem;
+         margin-inline: auto;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+         max-width: 42rem;
+         margin-inline: auto;
+      }
    }
 }
 
@@ -99,7 +115,7 @@
       }
 
       .background {
-         grid-column: 4 / span 6;
+         grid-column: 3 / span 8;
       }
    }
 
