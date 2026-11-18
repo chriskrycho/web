@@ -23,6 +23,12 @@ services:
       paths:
         - sites/music/**
         - _scripts/**
+        - Cargo.toml
+        - Cargo.lock
+        - rust-toolchain.toml
+        - lx/Cargo.toml
+        - lx/src/**
+        - lx/crates/**
     buildCommand: |
       bash ./_scripts/build.sh music
 

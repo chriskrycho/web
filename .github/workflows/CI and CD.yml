@@ -27,6 +27,8 @@ jobs:
             lx:
               - Cargo.toml
               - Cargo.lock
+              - rust-toolchain.toml
+              - lx/Cargo.toml
               - lx/src/**
               - lx/crates/**
             cfg: [render.yaml, _scripts/**, .github/workflows/**]
