@@ -258,7 +258,7 @@ mod tests {
 
       assert_eq!(
          html,
-         "<pre lang=\"rust\"><code class=\"rust\"><a-k>fn</a-k> <a-f>main</a-f><a-p>()</a-p> <a-p>{}</a-p>\n</code></pre>"
+         "<pre lang=\"rust\"><code class=\"rust\"><a-k>fn</a-k> <a-f>main</a-f><a-p>()</a-p> <a-p>{}</a-p></code></pre>"
       );
    }
 }
