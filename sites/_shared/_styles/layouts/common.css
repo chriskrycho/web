@@ -24,9 +24,5 @@ main {
 
 .work {
    font-family: var(--sanomat-stack);
-}
-
-.work-info {
-   font-family: var(--sanomat-stack);
-   font-weight: 400;
+   font-weight: 600;
 }

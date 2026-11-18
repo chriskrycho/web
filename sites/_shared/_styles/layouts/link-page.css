@@ -45,6 +45,7 @@
          text-align: center;
          padding: 1em 2em;
          background: var(--bg-secondary);
+         color: var(--fg-secondary);
       }
 
       a.link:hover {
