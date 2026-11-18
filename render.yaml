@@ -8,7 +8,6 @@ services:
         value: 'true'
     buildFilter:
       paths:
-        - site/styles/**
         - site/public/**
     staticPublishPath: './site/public'
     domain: v6.chriskrycho.com
@@ -16,14 +15,14 @@ services:
   - type: web
     name: music
     runtime: static
-    autoDeploy: true
+    autoDeployTrigger: 'checksPass'
     envVars:
       - key: SKIP_INSTALL_DEPS
         value: 'true'
     buildFilter:
       paths:
-        - site/styles/**
         - sites/music/**
+        - _scripts/**
     buildCommand: |
       bash ./_scripts/build.sh music
 
