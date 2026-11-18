@@ -225,11 +225,11 @@ body {
 
 @media screen and (min-width: 1280px) {
    .avatar {
-      grid-column: 3 / span 3;
+      grid-column: 2 / span 3;
    }
 
    .about {
-      grid-column-end: span 5;
+      grid-column-end: span 6;
    }
 
    .sketch-to-sound {
