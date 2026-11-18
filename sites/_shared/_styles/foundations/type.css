@@ -1,11 +1,11 @@
 :root {
    /* TODO: make a stack for each of these. */
    --frame-head-stack: 'Frame Head';
-   --frame-stack: 'Frame';
+   --frame-stack: 'Frame Text';
    --sanomat-stack: 'Sanomat';
    --sanomat-sans-stack: 'Sanomat Sans Text';
 
-   --text: 'Frame';
+   --text: 'Frame Text';
    --text-lh: 1.4;
    --text-weight: 400;
    --text-weight-bold: 600;
