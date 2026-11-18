@@ -43,6 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
       - uses: taiki-e/install-action@nextest
       - run: cargo fmt --all --quiet -- --check
       - run: cargo check --locked
@@ -62,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ''
       - name: Create release build
         run: cargo build --locked --release
 
