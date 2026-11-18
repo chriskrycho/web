@@ -3,6 +3,19 @@
 {# The long-term move here is: generate this from data, etc. #}
 {% block main %}
 <main class="splash">
+   <figure class="medium avatar">
+      <img
+         src="https://cdn.chriskrycho.com/images/avatars/2024%20600%C3%97600%20music.jpg"
+         alt="portrait of Chris Krycho"
+      />
+   </figure>
+
+   <article class="about content">
+      {{content}}
+   </article>
+
+   <hr class="section-break" />
+
    <section class="featured">
       <section class="featured-item content">
          <header>
@@ -77,19 +90,6 @@
          <p><a href="/works/desert-2024/">More →</a></p>
       </section>
    </section>
-
-   <hr class="section-break" />
-
-   <figure class="medium avatar">
-      <img
-         src="https://cdn.chriskrycho.com/images/avatars/2024%20600%C3%97600%20music.jpg"
-         alt="portrait of Chris Krycho"
-      />
-   </figure>
-
-   <article class="about content">
-      {{content}}
-   </article>
 
    <hr class="section-break" />
 

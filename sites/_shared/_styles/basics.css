@@ -7,7 +7,7 @@ html {
    font-size: calc(var(--fs0) * var(--fs-scheme-adjust));
    font-size-adjust: from-font;
    line-height: 1;
-   background-color: var(--bg-secondary);
+   /* background-color: var(--blue-4); */
    color: var(--fg);
    hanging-punctuation: first allow-end last;
 }

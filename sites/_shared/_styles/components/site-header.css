@@ -3,6 +3,9 @@
 .site-header {
    header {
       grid-column: 1 / -1;
+      /* visual vertical alignment */
+      margin-top: 0.3em;
+      margin-bottom: -0.3em;
    }
 
    a,
@@ -46,4 +49,21 @@
 .site-header.container {
    background: var(--bg-secondary);
    color: var(--fg-secondary);
+   margin-top: calc(1.55 * var(--grid-base));
+   padding-top: var(--grid-base);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+   .site-header header h1 {
+      a,
+      a:link,
+      a:visited {
+         color: var(--gold);
+      }
+
+      a:hover,
+      a:active {
+         color: var(--light-blue-0);
+      }
+   }
 }

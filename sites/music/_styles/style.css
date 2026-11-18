@@ -1,5 +1,15 @@
 @import '../../_shared/_styles/_index.css';
 
+body {
+   background-color: var(--blue-4);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+   body {
+      background-color: var(--gold);
+   }
+}
+
 /* Not bothering extracting this until I have a *reason* to do so. */
 .avatar {
    grid-column-end: span 2;
@@ -297,4 +307,6 @@
 .container.secondary {
    background-color: var(--bg-alt);
    color: var(--fg-alt);
+   padding-top: calc(2 * var(--grid-base));
+   margin-bottom: var(--grid-base);
 }
