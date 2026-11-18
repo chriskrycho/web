@@ -2,7 +2,7 @@
 
    - Josh Comeau’s reset (https://www.joshwcomeau.com/css/custom-css-reset/).
    - normalize.css (github.com/necolas/normalize.css
-  
+
    In addition, I have a number of my own opinions layered in!
  */
 /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
@@ -31,10 +31,6 @@
 html {
    line-height: 1; /* 1 */
    -webkit-text-size-adjust: 100%; /* 2 */
-}
-
-body {
-   -webkit-font-smoothing: antialiased;
 }
 
 /* 5. Improve media defaults */
