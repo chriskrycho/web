@@ -24,7 +24,6 @@ services:
       paths:
         - site/styles/**
         - sites/music/**
-        - sites/_shared/**
     buildCommand: |
       bash ./_scripts/build.sh music
 

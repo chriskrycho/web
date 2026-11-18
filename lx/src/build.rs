@@ -51,40 +51,12 @@ pub fn build(
    let site_files = SiteFiles::in_dir(input_dir)?;
    trace!("Site files: {site_files}");
 
-   let shared_dir = input_dir.parent().map(|parent| parent.join("_shared"));
-   let mut shared_files = shared_dir
-      .as_ref()
-      .map(|dir| SharedFiles::in_dir(dir))
-      .transpose()?;
+   trace!("all templates: {:?}", site_files.templates);
 
-   trace!(
-      "Shared files: {}",
-      match &shared_files {
-         Some(files) => format!("{files}"),
-         None => "none".into(),
-      }
-   );
-
-   let mut all_templates = site_files.templates;
-   if let Some(shared_files) = shared_files.as_mut() {
-      all_templates.append(&mut shared_files.templates);
-   }
-
-   trace!("all templates: {all_templates:?}");
-
-   let jinja_env = templates::load(all_templates, |path| {
+   let jinja_env = templates::load(site_files.templates, |path| {
       let site_ui_dir = input_dir.join(&*UI_DIR);
       if path.starts_with(&site_ui_dir) {
          Ok(path.strip_prefix(&site_ui_dir).unwrap())
-      } else if let Some(shared_dir) = shared_dir.as_ref() {
-         let shared_ui_dir = shared_dir.join(&*UI_DIR);
-         if path.starts_with(&shared_ui_dir) {
-            Ok(path.strip_prefix(&shared_ui_dir).unwrap())
-         } else {
-            Err(Error::TemplatePath {
-               path: path.to_owned(),
-            })?
-         }
       } else {
          Err(Error::TemplatePath {
             path: path.to_owned(),
@@ -152,25 +124,6 @@ pub fn build(
    // TODO: Identify the taxonomical system I want to use for the site(s)!
    let _archive = Archive::new(&items);
 
-   // TODO: this and the below are identical, except for the directory from which they
-   // come. This is suggestive: maybe extract into a function for handling both, and
-   // implement a trait for both to use. In that case, it would also very likely make
-   // sense to include at least a reference to the source directory in the `shared_files`
-   // and `site_files` structs.
-   if let Some(shared) = shared_files.as_mut() {
-      debug!("Copying {} shared static files", shared.static_files.len());
-      for static_file in shared.static_files.iter() {
-         let relative_path = static_file
-            .strip_prefix(shared_dir.as_ref().unwrap().join("_static"))
-            .map_err(|_| Error::StripPrefix {
-               prefix: input_dir.to_owned(),
-               path: static_file.clone(),
-            })?;
-         let path = config.output.join(relative_path);
-         copy(static_file, &path)?;
-      }
-   }
-
    debug!("Copying {} static files", site_files.static_files.len());
    for static_file in site_files.static_files.iter() {
       let relative_path = static_file
@@ -209,10 +162,13 @@ pub fn build(
       .into_iter()
       // only build the “root” files
       .filter(|path| {
+         // Only build the “root” CSS files; everything else is a partial pulled in
+         // via `@import` (and is bundled into the root file).
          !path
             .file_name()
             .expect("all CSS files have file names")
-            .starts_with("_")
+            .starts_with('_')
+            && path.parent() == Some(input_dir.join("_styles").as_path())
       })
    {
       trace!("building CSS for {css_file}");
@@ -512,35 +468,6 @@ impl fmt::Display for SiteFiles {
       writeln!(f, "  config files:{}", self.config)?;
       writeln!(f, "  content files:{}", display_paths(&self.content))?;
       writeln!(f, "  data files:{}", display_paths(&self.data))?;
-      writeln!(f, "  style files:{}", display_paths(&self.styles))?;
-      writeln!(f, "  template files:{}", display_paths(&self.templates))?;
-      Ok(())
-   }
-}
-
-struct SharedFiles {
-   templates: Vec<Utf8PathBuf>,
-   static_files: Vec<Utf8PathBuf>,
-   styles: Vec<Utf8PathBuf>,
-}
-
-impl SharedFiles {
-   fn in_dir(dir: &Utf8Path) -> Result<SharedFiles, Error> {
-      let site_files = SharedFiles {
-         templates: resolved_paths_for(&format!("{dir}/{}/**/*.jinja", *UI_DIR))?,
-         static_files: resolved_paths_for(&format!("{dir}/_static/**/*"))?,
-         styles: resolved_paths_for(&format!("{dir}/_styles/**/*.scss"))?,
-      };
-
-      Ok(site_files)
-   }
-}
-
-impl fmt::Display for SharedFiles {
-   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      // Yes, I could do these alignments with format strings; maybe at some
-      // point I will switch to that.
-      writeln!(f)?;
       writeln!(f, "  style files:{}", display_paths(&self.styles))?;
       writeln!(f, "  template files:{}", display_paths(&self.templates))?;
       Ok(())

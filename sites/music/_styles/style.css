@@ -1,4 +1,4 @@
-@import '../../_shared/_styles/_index.css';
+@import './_index.css';
 
 body {
    background-color: var(--gold);
