@@ -1,9 +1,9 @@
 @import '../foundations/grid.css';
 
 .site-header {
-   /* I don't love having these here, but it beats repeating them elsewhere. */
-   margin-bottom: var(--grid-base);
-   grid-column: 1 / -1;
+   header {
+      grid-column: 1 / -1;
+   }
 
    a,
    a:link,
@@ -14,17 +14,17 @@
 
    a:hover,
    a:active {
-      color: var(--gold);
+      color: var(--bright-blue-0);
       text-decoration: underline;
    }
 
    h1 {
       font-family: var(--site-header);
       font-size: var(--fs4);
-      font-style: italic;
       font-weight: 600;
       color: var(--blue-n);
       line-height: 1.333;
+      text-align: center;
    }
 
    h2 {
@@ -41,4 +41,9 @@
    .dot {
       color: var(--blue-4);
    }
+}
+
+.site-header.container {
+   background: var(--bg-secondary);
+   color: var(--fg-secondary);
 }

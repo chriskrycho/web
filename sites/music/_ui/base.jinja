@@ -5,22 +5,16 @@
    {{ head(content, data, source, config) }}
 
    <body>
-      <div class="container">
-         <header class="site-header">
-            <h1>
-               <a href="/">
-               <span class="header-me">Chris Krycho</span><!--
-               --><span class="header-sep">&ThinSpace;—&ThinSpace;</span><!--
-               --><span class="header-work">Composer</span>
-               </a>
-            </h1>
+      <div class="site-header container">
+         <header>
+         <h1><a href="/">Chris Krycho</a></h1>
          </header>
-
+      </div>
+      <div class="container">
          {% block main -%}
          {%- endblock main %}
-
-         <hr class="section-break" />
-
+      </div>
+      <div class="container secondary">
          <footer class="subscribe content">
             <h1>Follow</h1>
             <div class="options">

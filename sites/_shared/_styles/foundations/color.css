@@ -6,7 +6,11 @@
    --blue-0: oklch(28% 0.04 246.48);
    --blue: oklch(38% 0.04 246.48);
 
-   --blue-n: oklch(0.48 0.16 248.87);
+   --bright-blue-0: oklch(0.48 0.16 248.87);
+   --bright-blue-1: oklch(0.48 0.12 248.87);
+   --bright-blue-2: oklch(0.48 0.08 248.87);
+   --bright-blue-3: oklch(0.48 0.04 248.87);
+   --bright-blue-4: oklch(0.48 0.02 248.87);
 
    --light-blue: oklch(81.95% 0.042 246.48);
    --light-blue-0: oklch(92% 0.042 246.48);
@@ -24,8 +28,10 @@
 
    --bg: var(--bluish-white);
    --bg-secondary: var(--light-blue);
+   --bg-alt: var(--blue);
    --fg: var(--blue);
    --fg-secondary: var(--blue-2);
+   --fg-alt: var(--light-gray-0);
 
    --code-bg: var(--light-gray-1);
    --code-block-bg: var(--light-gray-0);
@@ -38,6 +44,8 @@
       --bg: var(--blue-4);
       --bg-secondary: var(--blue);
       --fg: var(--golden-white);
+      --bg-alt: var(--bright-blue-3);
+      --fg-alt: var(--bluish-white);
 
       --code-bg: var(--blue-2);
       --code-block-bg: var(--blue-2);

@@ -283,3 +283,8 @@
       grid-column-end: span 4;
    }
 }
+
+.container.secondary {
+   background-color: var(--bg-alt);
+   color: var(--fg-alt);
+}
