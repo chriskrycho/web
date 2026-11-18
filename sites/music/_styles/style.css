@@ -39,6 +39,14 @@
    grid-column-end: span 4;
 }
 
+.services {
+   padding-inline: 0;
+
+   li {
+      list-style: none;
+   }
+}
+
 .option h2 {
    margin-top: var(--fs-2);
 }
@@ -261,6 +269,7 @@
    }
 
    .newsletter {
+      grid-column-start: 1;
       grid-column-end: span 5;
    }
 
@@ -270,7 +279,7 @@
    }
 
    .music-services {
-      grid-column-start: auto;
+      grid-column-start: 7;
    }
 }
 
