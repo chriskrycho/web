@@ -21,6 +21,7 @@ mod data;
 mod error;
 mod feed;
 mod light_dark;
+mod live_reload;
 mod md;
 mod page;
 mod server;

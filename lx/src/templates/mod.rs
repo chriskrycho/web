@@ -1,8 +1,6 @@
 mod filters;
 mod functions;
 
-use std::io::Write;
-
 use camino::{Utf8Path, Utf8PathBuf};
 use log::{debug, trace};
 use minijinja::{Environment, context};
@@ -68,12 +66,7 @@ where
    Ok(env)
 }
 
-pub fn render(
-   env: &Environment,
-   item: &Item,
-   config: &Config,
-   dest: impl Write,
-) -> Result<(), Error> {
+pub fn render(env: &Environment, item: &Item, config: &Config) -> Result<String, Error> {
    debug!(
       "Rendering page '{}' ({:?}) with layout '{}'",
       item.title(),
@@ -86,17 +79,13 @@ pub fn render(
          source,
          path: item.source().path.clone(),
       })?
-      .render_captured_to(
-         context! {
-            content => item.content().html(),
-            data => item.data(),
-            config,
-            path => item.path(),
-            source => item.source(),
-         },
-         dest,
-      )
-      .map(|_captured| ()) // throw it away for now; return it if we need it later
+      .render(context! {
+         content => item.content().html(),
+         data => item.data(),
+         config,
+         path => item.path(),
+         source => item.source(),
+      })
       .map_err(|source| Error::Render {
          source,
          path: item.source().path.clone(),

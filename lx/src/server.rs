@@ -15,6 +15,7 @@ use axum::{
       State, WebSocketUpgrade,
       ws::{Message, WebSocket},
    },
+   http::header,
    response::Response,
    routing::{self},
 };
@@ -47,6 +48,7 @@ use crate::{
    build::{self, build, config_for},
    canonicalized::Canonicalized,
    data::config::Config,
+   live_reload,
 };
 
 /// Serve the site, blocking on the result (i.e., blocking forever until it is
@@ -192,6 +194,7 @@ async fn serve_in(
    let router = Router::new()
       .route_service("/", ServeFile::new(path.join("index.html")))
       .route_service("/*asset", serve_dir)
+      .route("/live-reload.js", routing::get(live_reload_js))
       .route("/live-reload", routing::get(websocket_upgrade))
       .with_state(state);
 
@@ -213,6 +216,14 @@ async fn serve_in(
    axum::serve(listener, router)
       .await
       .map_err(|source| Error::ServeStart { source })
+}
+
+async fn live_reload_js() -> Response {
+   Response::builder()
+      .header(header::CONTENT_TYPE, "text/javascript; charset=utf-8")
+      .header(header::CACHE_CONTROL, "no-store")
+      .body(live_reload::CLIENT.into())
+      .expect("static live-reload response is valid")
 }
 
 async fn websocket_upgrade(
@@ -557,4 +568,26 @@ where
    F: Future<Output = T> + Unpin,
 {
    future::select_all(futures).await.0
+}
+
+#[cfg(test)]
+mod tests {
+   use super::*;
+   use axum::body::to_bytes;
+
+   #[tokio::test]
+   async fn serves_embedded_live_reload_client() {
+      let response = live_reload_js().await;
+
+      assert_eq!(
+         response.headers()[header::CONTENT_TYPE],
+         "text/javascript; charset=utf-8",
+      );
+      assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+
+      let body = to_bytes(response.into_body(), usize::MAX)
+         .await
+         .expect("reads the embedded client");
+      assert_eq!(&body[..], live_reload::CLIENT.as_bytes());
+   }
 }

@@ -15,6 +15,7 @@ use crate::{
       item::cascade::{Cascade, CascadeLoadError},
    },
    error::write_to_fmt,
+   live_reload,
    page::{self, Item, Source},
    style, templates,
 };
@@ -32,6 +33,7 @@ pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
    Ok(config)
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Mode {
    Build,
    Serve,
@@ -151,10 +153,16 @@ pub fn build(
          source: e,
       })?;
 
-      let mut buf = Vec::new();
-      templates::render(&jinja_env, &item, config, &mut buf)?;
+      let mut rendered = templates::render(&jinja_env, &item, config)?;
 
-      emit(&path, &buf)?;
+      live_reload::inject_for(mode, &mut rendered).map_err(|source| {
+         Error::LiveReload {
+            path: path.clone(),
+            source,
+         }
+      })?;
+
+      emit(&path, &rendered)?;
    }
 
    for css_file in site_files
@@ -354,6 +362,12 @@ pub enum Error {
    NonUtf8Path {
       source: camino::FromPathBufError,
       path: std::path::PathBuf,
+   },
+
+   #[error("could not inject live reload into '{path}': {source}")]
+   LiveReload {
+      path: Utf8PathBuf,
+      source: live_reload::Error,
    },
 }
 
