@@ -19,8 +19,8 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # 4.0.3
         id: filter
         with:
           filters: |
@@ -43,11 +43,11 @@ jobs:
     if: ${{ needs.changes.outputs.lx == 'true' || needs.changes.outputs.cfg == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # 2.0.1
         with:
           rustflags: ''
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@d75f3433052800716ea4e9618494c31d16de4188 # `nextest` corresponding to `2.90.6`
       - run: cargo fmt --all --quiet -- --check
       - run: cargo check --locked
       - run: cargo clippy --locked -- --no-deps
@@ -64,8 +64,8 @@ jobs:
       contents: write
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # 2.0.1
         with:
           rustflags: ''
       - name: Create release build
@@ -83,7 +83,7 @@ jobs:
           SHA=$(git rev-parse --short HEAD)
           echo "release_name=lx-${SHA}" >> "$GITHUB_OUTPUT"
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # 3.0.4
         with:
           files: lx-linux
           fail_on_unmatched_files: true
