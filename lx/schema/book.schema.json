@@ -1,68 +1,68 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://chriskrycho.github.io/lx/book.schema.json",
-  "title": "lx site builder metadata schema",
-  "description": "Metadata for my own site builder",
-  "type": "object",
-  "properties": {
-    "title": {
-      "description": "Title for the item",
-      "type": "string"
-    },
-    "author": { "$ref": "#/$defs/person" },
-    "authors": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/person" }
-    },
-    "year": {
-      "type": "string"
-    },
-    "editor": { "$ref": "#/$defs/person" },
-    "editors": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/person" }
-    },
-    "translator": {
-      "$ref": "#/$defs/person"
-    },
-    "translators": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/person" }
-    },
-    "cover": { "type": "string" },
-    "link": { "type": "string" },
-    "review": {
-      "type": "object",
-      "properties": {
-        "rating": {
-          "enum": [
-            "Not recommended",
-            "Recommended with qualifications",
-            "Recommended",
-            "Required"
-          ]
-        },
-        "summary": { "type": "string" }
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "https://chriskrycho.github.io/lx/book.schema.json",
+   "title": "lx site builder metadata schema",
+   "description": "Metadata for my own site builder",
+   "type": "object",
+   "properties": {
+      "title": {
+         "description": "Title for the item",
+         "type": "string"
+      },
+      "author": { "$ref": "#/$defs/person" },
+      "authors": {
+         "type": "array",
+         "items": { "$ref": "#/$defs/person" }
+      },
+      "year": {
+         "type": "string"
+      },
+      "editor": { "$ref": "#/$defs/person" },
+      "editors": {
+         "type": "array",
+         "items": { "$ref": "#/$defs/person" }
+      },
+      "translator": {
+         "$ref": "#/$defs/person"
+      },
+      "translators": {
+         "type": "array",
+         "items": { "$ref": "#/$defs/person" }
+      },
+      "cover": { "type": "string" },
+      "link": { "type": "string" },
+      "review": {
+         "type": "object",
+         "properties": {
+            "rating": {
+               "enum": [
+                  "Not recommended",
+                  "Recommended with qualifications",
+                  "Recommended",
+                  "Required"
+               ]
+            },
+            "summary": { "type": "string" }
+         }
       }
-    }
-  },
-  "required": ["title"],
-  "oneOf": [{ "required": ["author"] }, { "required": ["authors"] }],
+   },
+   "required": ["title"],
+   "oneOf": [{ "required": ["author"] }, { "required": ["authors"] }],
 
-  "$defs": {
-    "name": { "type": "string" },
-    "person": {
-      "oneOf": [
-        { "$ref": "#/$defs/name" },
-        {
-          "type": "object",
-          "properties": {
-            "name": { "$ref": "#/$defs/name" },
-            "date-of-birth": { "type": "string" }
-          },
-          "required": ["name"]
-        }
-      ]
-    }
-  }
+   "$defs": {
+      "name": { "type": "string" },
+      "person": {
+         "oneOf": [
+            { "$ref": "#/$defs/name" },
+            {
+               "type": "object",
+               "properties": {
+                  "name": { "$ref": "#/$defs/name" },
+                  "date-of-birth": { "type": "string" }
+               },
+               "required": ["name"]
+            }
+         ]
+      }
+   }
 }

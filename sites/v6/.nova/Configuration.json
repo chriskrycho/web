@@ -1,5 +1,3 @@
 {
-  "index.ignored_file_patterns" : [
-    "public"
-  ]
+   "index.ignored_file_patterns": ["public"]
 }

@@ -16,8 +16,8 @@ log = { workspace = true }
 latex2mathml = "0.2"
 lazy_static = { workspace = true }
 pulldown-cmark = { version = "0.13", default-features = false, features = [
-    "simd",
-    "html",
+   "simd",
+   "html",
 ] }
 thiserror = { workspace = true }
 serde = { workspace = true }

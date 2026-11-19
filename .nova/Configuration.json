@@ -1,10 +1,10 @@
 {
-  "workspace.color" : 8,
-  "workspace.name" : "v6.chriskrycho.com – Main",
-  "yaml.schemas" : {
-    ".\/lx\/schema\/item.schema.json" : [
-      "site\/content\/*.lx.yaml",
-      "tests\/*\/content\/*.lx.yaml"
-    ]
-  }
+   "workspace.color": 8,
+   "workspace.name": "v6.chriskrycho.com – Main",
+   "yaml.schemas": {
+      ".\/lx\/schema\/item.schema.json": [
+         "site\/content\/*.lx.yaml",
+         "tests\/*\/content\/*.lx.yaml"
+      ]
+   }
 }

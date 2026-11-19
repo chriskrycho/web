@@ -1,7 +1,5 @@
 {
-  "[rust]": {
-    "editor.rulers": [
-      90
-    ]
-  }
+   "[rust]": {
+      "editor.rulers": [90]
+   }
 }

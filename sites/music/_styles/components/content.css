@@ -167,8 +167,7 @@
 
 .content a[href^='https://v3.chriskrycho.com']::after,
 .content a[href^='https://v4.chriskrycho.com']::after,
-.content a[href^='https://v5.chriskrycho.com']::after
-{
+.content a[href^='https://v5.chriskrycho.com']::after {
    font-size: 0.8em;
    vertical-align: super;
    font-family: var(--heading);
@@ -177,18 +176,15 @@
 }
 
 /* Previous version links */
-.content a[href^='https://v3.chriskrycho.com']::after
-{
+.content a[href^='https://v3.chriskrycho.com']::after {
    content: 'v3';
 }
 
-.content a[href^='https://v4.chriskrycho.com']::after
-{
+.content a[href^='https://v4.chriskrycho.com']::after {
    content: 'v4';
 }
 
-.content a[href^='https://v5.chriskrycho.com']::after
-{
+.content a[href^='https://v5.chriskrycho.com']::after {
    content: 'v5';
 }
 

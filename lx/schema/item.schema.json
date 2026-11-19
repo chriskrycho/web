@@ -1,21 +1,21 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://chriskrycho.github.io/lx/item.schema.json",
-  "title": "lx site builder metadata schema",
-  "description": "Metadata for my own site builder",
-  "type": "object",
-  "properties": {
-    "title": {
-      "description": "Title for the item",
-      "type": "string"
-    },
-    "date": {
-      "description": "Date for the item",
-      "type": "string"
-    },
-    "book": {
-      "$ref": "./book.schema.json"
-    }
-  },
-  "anyOf": [{ "required": ["title"] }, { "required": ["date"] }]
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "https://chriskrycho.github.io/lx/item.schema.json",
+   "title": "lx site builder metadata schema",
+   "description": "Metadata for my own site builder",
+   "type": "object",
+   "properties": {
+      "title": {
+         "description": "Title for the item",
+         "type": "string"
+      },
+      "date": {
+         "description": "Date for the item",
+         "type": "string"
+      },
+      "book": {
+         "$ref": "./book.schema.json"
+      }
+   },
+   "anyOf": [{ "required": ["title"] }, { "required": ["date"] }]
 }

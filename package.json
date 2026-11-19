@@ -1,22 +1,8 @@
 {
    "devDependencies": {
       "lite-youtube-embed": "^0.3.2",
-      "prettier": "^3.2.4"
-   },
-   "prettier": {
-      "tabWidth": 3,
-      "printWidth": 90,
-      "singleQuote": true,
-      "overrides": [
-         {
-            "files": [
-               "*.yaml",
-               "*.yml"
-            ],
-            "options": {
-               "tabWidth": 2
-            }
-         }
-      ]
+      "oxfmt": "^0.79.0",
+      "prettier": "^3.2.4",
+      "typescript": "^7.0.2"
    }
 }
