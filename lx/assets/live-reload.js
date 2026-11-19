@@ -16,9 +16,9 @@ let ws = null;
 connect();
 
 function connect() {
-   // TODO: derive this from the page location so non-default ports and network
-   // access work.
-   ws = new WebSocket('ws://localhost:24747/live-reload');
+   const endpoint = new URL('/live-reload', location.href);
+   endpoint.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+   ws = new WebSocket(endpoint);
    debug('created WebSocket instance');
 
    ws.addEventListener('open', (event) => {
