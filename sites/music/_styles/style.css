@@ -4,6 +4,12 @@ body {
    background-color: var(--gold);
 }
 
+@media screen and (prefers-color-scheme: dark) {
+   body {
+      background-color: var(--tan);
+   }
+}
+
 /* Not bothering extracting this until I have a *reason* to do so. */
 .avatar {
    grid-column-end: span 2;
