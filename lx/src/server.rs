@@ -52,7 +52,7 @@ use crate::{
    data::config::Config,
 };
 
-const ASSETS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/dist");
+const ASSETS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets");
 
 /// Serve the site, blocking on the result (i.e., blocking forever until it is
 /// killed by some kind of signal or failure).
@@ -233,17 +233,33 @@ where
    S: Clone + Send + Sync + 'static,
    P: AsRef<Path>,
 {
+   let assets_dir = in_dir.as_ref();
+
+   // We want to resolve `assets/src` specifically, and then resolve anything else within
+   // `assets/*` to `assets/dist`, so that source maps work.
    Router::<S>::new()
       .nest_service(
+         "/assets/src",
+         ServeDir::new(assets_dir.join("src")).append_index_html_on_directories(false),
+      )
+      .nest_service(
          "/assets",
-         ServeDir::new(in_dir).append_index_html_on_directories(false),
+         ServeDir::new(assets_dir.join("dist")).append_index_html_on_directories(false),
       )
       .layer(middleware::from_fn(async |req: Request, next: Next| {
-         // Check whether this is a source map *before* executing the next part of the
-         // middleware chain, because `next.run` moves `request`. This is a naïve way to
-         // do the check (just the file extension!) but it will get the job done.
-         let is_source_map =
-            Path::new(req.uri().path()).extension() == Some(OsStr::new("map"));
+         // Check whether this is a source map or a TypeScript file *before* executing the
+         // next part of the middleware chain, because `next.run` moves `request`. We need
+         // to handle the TS files because MIME type can guess “transport stream” instead
+         // of TS. This is a naïve way to do the check (just the file extension!) but it
+         // will get the job done.
+         let content_type_override = match Path::new(req.uri().path())
+            .extension()
+            .and_then(OsStr::to_str)
+         {
+            Some("map") => Some("application/json"),
+            Some("ts" | "tsx" | "mts" | "cts") => Some("text/plain; charset=utf-8"),
+            _ => None,
+         };
 
          let mut response = next.run(req).await;
 
@@ -256,11 +272,12 @@ where
             HeaderValue::from_static("nosniff"),
          );
 
-         if is_source_map && response.status().is_success() {
-            response.headers_mut().insert(
-               header::CONTENT_TYPE,
-               HeaderValue::from_static("application/json"),
-            );
+         if response.status().is_success()
+            && let Some(content_type) = content_type_override
+         {
+            response
+               .headers_mut()
+               .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
          }
 
          response
@@ -621,8 +638,9 @@ mod tests {
    use tower::ServiceExt;
 
    const TEST_ASSETS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test-assets");
-   const TEST_JS: &str = include_str!("../test-assets/hello.js");
-   const TEST_CSS: &str = include_str!("../test-assets/style.css");
+   const TEST_JS: &str = include_str!("../test-assets/dist/hello.js");
+   const TEST_TS: &str = include_str!("../test-assets/src/hello.ts");
+   const TEST_CSS: &str = include_str!("../test-assets/dist/style.css");
 
    fn test_router() -> Router {
       let (state, _) = broadcast::channel(1);
@@ -671,12 +689,25 @@ mod tests {
    }
 
    #[tokio::test]
-   async fn serves_source_maps_as_json() {
+   async fn serves_source_maps_and_their_sources() {
       let response = get_asset("/assets/hello.js.map").await;
 
       assert_eq!(response.status(), StatusCode::OK);
       assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
       assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+
+      let response = get_asset("/assets/src/hello.ts").await;
+
+      assert_eq!(response.status(), StatusCode::OK);
+      assert_eq!(
+         response.headers()[header::CONTENT_TYPE],
+         "text/plain; charset=utf-8",
+      );
+
+      let body = to_bytes(response.into_body(), usize::MAX)
+         .await
+         .expect("reads the source map source");
+      assert_eq!(&body[..], TEST_TS.as_bytes());
    }
 
    #[tokio::test]
