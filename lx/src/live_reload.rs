@@ -2,9 +2,9 @@
 
 use crate::build::Mode;
 
-pub(crate) const CLIENT: &str = include_str!("../assets/live-reload.js");
+pub(crate) const CLIENT: &str = include_str!("../assets/dist/live-reload.js");
 
-const SCRIPT_TAG: &str = r#"<script src="/live-reload.js" defer></script>"#;
+const SCRIPT_TAG: &str = r#"<script defer type="module" src="/live-reload.js"></script>"#;
 const BODY_CLOSE: &[u8] = b"</body>";
 
 /// Inject live reload script *iff* in [`Mode::Serve`].
