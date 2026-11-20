@@ -93,35 +93,35 @@ function connect() {
    debug('added all WebSocket listeners');
 }
 
-function setLogLevel(value: Level) {
+export function setLogLevel(value: Level) {
    globalThis.localStorage.setItem(LS_KEY, value.toString());
 }
 
-function resetLogLevel() {
+export function resetLogLevel() {
    globalThis.localStorage.removeItem(LS_KEY);
 }
 
-function error(...messages: Array<unknown>) {
+export function error(...messages: Array<unknown>) {
    if (logLevel() >= Level.Error) console.error('[Error]', ...messages);
 }
 
-function warn(...messages: Array<unknown>) {
+export function warn(...messages: Array<unknown>) {
    if (logLevel() >= Level.Warn) console.warn('[Warning]', ...messages);
 }
 
-function info(...messages: Array<unknown>) {
+export function info(...messages: Array<unknown>) {
    if (logLevel() >= Level.Info) console.info('[Info]', ...messages);
 }
 
-function debug(...messages: Array<unknown>) {
+export function debug(...messages: Array<unknown>) {
    if (logLevel() >= Level.Debug) console.info('[Debug]', ...messages);
 }
 
-function trace(...messages: Array<unknown>) {
+export function trace(...messages: Array<unknown>) {
    if (logLevel() >= Level.Debug) console.info('[Trace]', ...messages);
 }
 
-function logLevel(): Level {
+export function logLevel(): Level {
    const stored = globalThis.localStorage.getItem(LS_KEY);
    if (stored == null) {
       return Level.Info;

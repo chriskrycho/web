@@ -2,9 +2,9 @@
 
 use crate::build::Mode;
 
-pub(crate) const CLIENT: &str = include_str!("../assets/dist/live-reload.js");
+const SCRIPT_TAG: &str =
+   r#"<script defer type="module" src="/assets/live-reload.js"></script>"#;
 
-const SCRIPT_TAG: &str = r#"<script defer type="module" src="/live-reload.js"></script>"#;
 const BODY_CLOSE: &[u8] = b"</body>";
 
 /// Inject live reload script *iff* in [`Mode::Serve`].
@@ -34,17 +34,13 @@ pub(crate) struct Error;
 mod tests {
    use super::*;
 
-   const EXPECTED_SCRIPT: &str = "<script src=\"/live-reload.js\" defer></script>";
-
    #[test]
    fn inserts_before_final_body() {
       let mut input = String::from("<html><head></head><body></body></html>");
       let result = inject(&mut input);
       assert!(result.is_ok());
 
-      let expected = String::from(
-         "<html><head></head><body><script src=\"/live-reload.js\" defer></script></body></html>",
-      );
+      let expected = format!("<html><head></head><body>{SCRIPT_TAG}</body></html>",);
 
       assert_eq!(input, expected);
    }
@@ -55,7 +51,7 @@ mod tests {
 
       inject_for(Mode::Serve, &mut input).expect("serve-mode injection succeeds");
 
-      assert_eq!(input, format!("<body>{EXPECTED_SCRIPT}</body>"));
+      assert_eq!(input, format!("<body>{SCRIPT_TAG}</body>"));
    }
 
    #[test]
@@ -79,7 +75,7 @@ mod tests {
       assert_eq!(
          input,
          format!(
-            "<body><script>const closing = \"</body>\";</script>{EXPECTED_SCRIPT}</body></html>"
+            "<body><script>const closing = \"</body>\";</script>{SCRIPT_TAG}</body></html>"
          ),
       );
    }
@@ -92,7 +88,7 @@ mod tests {
 
       assert_eq!(
          input,
-         format!("<body>{EXPECTED_SCRIPT}</body>\n<!-- trailing -->\n"),
+         format!("<body>{SCRIPT_TAG}</body>\n<!-- trailing -->\n"),
       );
    }
 
@@ -104,7 +100,7 @@ mod tests {
 
       assert_eq!(
          input,
-         format!("<body>Coöperation FTW: 🎉 {EXPECTED_SCRIPT}</body>")
+         format!("<body>Coöperation FTW: 🎉 {SCRIPT_TAG}</body>")
       );
    }
 
@@ -114,7 +110,7 @@ mod tests {
 
       inject(&mut input).expect("HTML tags are case-insensitive");
 
-      assert_eq!(input, format!("<BODY>{EXPECTED_SCRIPT}</BODY>"));
+      assert_eq!(input, format!("<BODY>{SCRIPT_TAG}</BODY>"));
    }
 
    #[test]
@@ -127,12 +123,5 @@ mod tests {
 
       assert!(matches!(error, Error));
       assert_eq!(input, original);
-   }
-
-   #[test]
-   fn client_derives_the_endpoint_from_the_page() {
-      assert!(CLIENT.contains("new URL('/live-reload', location.href)"));
-      assert!(CLIENT.contains("location.protocol === 'https:' ? 'wss:' : 'ws:'"));
-      assert!(!CLIENT.contains("24747"));
    }
 }

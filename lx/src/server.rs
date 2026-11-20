@@ -1,4 +1,5 @@
 use std::{
+   ffi::OsStr,
    fmt,
    future::Future,
    io,
@@ -12,10 +13,11 @@ use std::{
 use axum::{
    Router,
    extract::{
-      State, WebSocketUpgrade,
+      Request, State, WebSocketUpgrade,
       ws::{Message, WebSocket},
    },
-   http::header,
+   http::{HeaderValue, header},
+   middleware::{self, Next},
    response::Response,
    routing::{self},
 };
@@ -48,8 +50,9 @@ use crate::{
    build::{self, build, config_for},
    canonicalized::Canonicalized,
    data::config::Config,
-   live_reload,
 };
+
+const ASSETS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/dist");
 
 /// Serve the site, blocking on the result (i.e., blocking forever until it is
 /// killed by some kind of signal or failure).
@@ -189,14 +192,7 @@ async fn serve_in(
    port: Option<u16>,
    state: Sender<Rebuild>,
 ) -> Result<(), Error> {
-   // This could be extracted into its own function.
-   let serve_dir = ServeDir::new(&path).append_index_html_on_directories(true);
-   let router = Router::new()
-      .route_service("/", ServeFile::new(path.join("index.html")))
-      .route_service("/*asset", serve_dir)
-      .route("/live-reload.js", routing::get(live_reload_js))
-      .route("/live-reload", routing::get(websocket_upgrade))
-      .with_state(state);
+   let router = router_for(&path, state, ASSETS_DIR);
 
    let port = port.unwrap_or(24747);
    let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -218,12 +214,57 @@ async fn serve_in(
       .map_err(|source| Error::ServeStart { source })
 }
 
-async fn live_reload_js() -> Response {
-   Response::builder()
-      .header(header::CONTENT_TYPE, "text/javascript; charset=utf-8")
-      .header(header::CACHE_CONTROL, "no-store")
-      .body(live_reload::CLIENT.into())
-      .expect("static live-reload response is valid")
+fn router_for(
+   path: &Utf8Path,
+   state: Sender<Rebuild>,
+   asset_dir: impl AsRef<Path>,
+) -> Router {
+   let serve_dir = ServeDir::new(path).append_index_html_on_directories(true);
+   Router::new()
+      .route_service("/", ServeFile::new(path.join("index.html")))
+      .route_service("/*asset", serve_dir)
+      .merge(assets(asset_dir))
+      .route("/live-reload", routing::get(websocket_upgrade))
+      .with_state(state)
+}
+
+fn assets<S, P>(in_dir: P) -> Router<S>
+where
+   S: Clone + Send + Sync + 'static,
+   P: AsRef<Path>,
+{
+   Router::<S>::new()
+      .nest_service(
+         "/assets",
+         ServeDir::new(in_dir).append_index_html_on_directories(false),
+      )
+      .layer(middleware::from_fn(async |req: Request, next: Next| {
+         // Check whether this is a source map *before* executing the next part of the
+         // middleware chain, because `next.run` moves `request`. This is a naïve way to
+         // do the check (just the file extension!) but it will get the job done.
+         let is_source_map =
+            Path::new(req.uri().path()).extension() == Some(OsStr::new("map"));
+
+         let mut response = next.run(req).await;
+
+         response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+
+         response.headers_mut().insert(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+         );
+
+         if is_source_map && response.status().is_success() {
+            response.headers_mut().insert(
+               header::CONTENT_TYPE,
+               HeaderValue::from_static("application/json"),
+            );
+         }
+
+         response
+      }))
 }
 
 async fn websocket_upgrade(
@@ -573,21 +614,80 @@ where
 #[cfg(test)]
 mod tests {
    use super::*;
-   use axum::body::to_bytes;
+   use axum::{
+      body::{Body, to_bytes},
+      http::{Request, StatusCode},
+   };
+   use tower::ServiceExt;
+
+   const TEST_ASSETS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test-assets");
+   const TEST_JS: &str = include_str!("../test-assets/hello.js");
+   const TEST_CSS: &str = include_str!("../test-assets/style.css");
+
+   fn test_router() -> Router {
+      let (state, _) = broadcast::channel(1);
+      router_for(Utf8Path::new("/unused"), state, TEST_ASSETS_DIR)
+   }
+
+   async fn get_asset(path: &str) -> Response {
+      test_router()
+         .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+         .await
+         .expect("asset router is infallible")
+   }
 
    #[tokio::test]
-   async fn serves_embedded_live_reload_client() {
-      let response = live_reload_js().await;
+   async fn serves_assets_with_inferred_mime_types() {
+      let js_response = get_asset("/assets/hello.js").await;
 
       assert_eq!(
-         response.headers()[header::CONTENT_TYPE],
-         "text/javascript; charset=utf-8",
+         js_response.headers()[header::CONTENT_TYPE],
+         "text/javascript",
       );
-      assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+      assert_eq!(js_response.headers()[header::CACHE_CONTROL], "no-store");
+      assert_eq!(
+         js_response.headers()[header::X_CONTENT_TYPE_OPTIONS],
+         "nosniff"
+      );
 
-      let body = to_bytes(response.into_body(), usize::MAX)
+      let body = to_bytes(js_response.into_body(), usize::MAX)
          .await
-         .expect("reads the embedded client");
-      assert_eq!(&body[..], live_reload::CLIENT.as_bytes());
+         .expect("reads the asset");
+      assert_eq!(&body[..], TEST_JS.as_bytes());
+
+      let css_response = get_asset("/assets/style.css").await;
+
+      assert_eq!(css_response.headers()[header::CONTENT_TYPE], "text/css",);
+      assert_eq!(css_response.headers()[header::CACHE_CONTROL], "no-store");
+      assert_eq!(
+         css_response.headers()[header::X_CONTENT_TYPE_OPTIONS],
+         "nosniff"
+      );
+
+      let body = to_bytes(css_response.into_body(), usize::MAX)
+         .await
+         .expect("reads the asset");
+      assert_eq!(&body[..], TEST_CSS.as_bytes());
+   }
+
+   #[tokio::test]
+   async fn serves_source_maps_as_json() {
+      let response = get_asset("/assets/hello.js.map").await;
+
+      assert_eq!(response.status(), StatusCode::OK);
+      assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
+      assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+   }
+
+   #[tokio::test]
+   async fn missing_assets_keep_protective_headers() {
+      let response = get_asset("/assets/not-present.js").await;
+
+      assert_eq!(response.status(), StatusCode::NOT_FOUND);
+      assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+      assert_eq!(
+         response.headers()[header::X_CONTENT_TYPE_OPTIONS],
+         "nosniff"
+      );
    }
 }
