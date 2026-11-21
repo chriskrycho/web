@@ -1,6 +1,6 @@
 use crate::data::{
    config::Config,
-   item::{self, Metadata, Slug, cascade::Cascade, serial},
+   item::{self, cascade::Cascade, serial, Metadata, Slug},
 };
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
@@ -14,6 +14,17 @@ use thiserror::Error;
 use uuid::Uuid;
 
 pub fn prepare<'e>(source: &'e Source, cascade: &Cascade) -> Result<Prepared<'e>, Error> {
+   match source.kind {
+      Kind::Markdown => prepare_markdown(source, cascade).map(Prepared::page),
+      Kind::Templated => prepare_template(source, cascade).map(Prepared::page),
+      Kind::Raw => Ok(Prepared::Raw(source)),
+   }
+}
+
+fn prepare_markdown<'e>(
+   source: &'e Source,
+   cascade: &Cascade,
+) -> Result<PreparedPage<'e>, Error> {
    let lx_md::Prepared {
       metadata_src,
       to_render,
@@ -27,29 +38,117 @@ pub fn prepare<'e>(source: &'e Source, cascade: &Cascade) -> Result<Prepared<'e>
             item_metadata,
             source,
             cascade,
-            String::from("base.jinja"), // TODO: not this
+            Some(String::from("base.jinja")), // TODO: not this
          )
          .map_err(Error::from)
       })?;
 
-   Ok(Prepared {
+   if data.title.is_none() {
+      return Err(item::Error::MissingRequiredField { name: "title" }.into());
+   }
+
+   Ok(PreparedPage {
       data,
       date,
-      to_render,
+      kind: Kind::Markdown,
+      body: Body::Markdown(to_render),
    })
 }
 
-pub struct Prepared<'e> {
+fn prepare_template<'e>(
+   source: &'e Source,
+   cascade: &Cascade,
+) -> Result<PreparedPage<'e>, Error> {
+   let front_matter = FrontMatter::parse(&source.contents)?;
+
+   let item_metadata = match front_matter.metadata {
+      Some(src) => serial::Item::try_parse(src)?,
+      None => serial::Item::default(),
+   };
+
+   let (data, date) =
+      Metadata::resolved(item_metadata, source, cascade, None).map_err(Error::from)?;
+
+   Ok(PreparedPage {
+      data,
+      date,
+      kind: Kind::Templated,
+      body: Body::Template(front_matter.body),
+   })
+}
+
+struct FrontMatter<'s> {
+   metadata: Option<&'s str>,
+   body: &'s str,
+}
+
+impl<'s> FrontMatter<'s> {
+   fn parse(source: &'s str) -> Result<Self, Error> {
+      let mut lines = source.split_inclusive('\n');
+      let opening = lines.next().unwrap_or(source);
+
+      if !is_fence_line(opening) {
+         return Ok(Self {
+            metadata: None,
+            body: source,
+         });
+      }
+
+      let metadata_start = opening.len();
+      let mut offset = metadata_start;
+
+      for line in lines {
+         let end = offset + line.len();
+
+         if is_fence_line(line) {
+            let metadata = &source[metadata_start..offset];
+
+            return Ok(Self {
+               metadata: (!metadata.trim().is_empty()).then_some(metadata),
+               body: &source[end..],
+            });
+         }
+
+         offset = end;
+      }
+
+      Err(Error::UnclosedFrontMatter)
+   }
+}
+
+fn is_fence_line(line: &str) -> bool {
+   line.strip_suffix('\n').unwrap_or(line) == "---"
+}
+
+pub enum Body<'e> {
+   Markdown(ToRender<'e>),
+   Template(&'e str),
+}
+
+pub enum Prepared<'e> {
+   Page(Box<PreparedPage<'e>>),
+   Raw(&'e Source),
+}
+
+impl<'e> Prepared<'e> {
+   fn page(page: PreparedPage<'e>) -> Self {
+      Prepared::Page(Box::new(page))
+   }
+}
+
+pub struct PreparedPage<'e> {
    /// The fully-parsed metadata associated with the item.
    data: Metadata,
 
    /// The date and time of the item, if any.
    date: Option<DateTime<FixedOffset>>,
 
-   to_render: ToRender<'e>,
+   kind: Kind,
+
+   body: Body<'e>,
 }
 
-impl Prepared<'_> {
+impl PreparedPage<'_> {
    pub fn render(
       self,
       highlighter: &mut Highlighter,
@@ -58,13 +157,24 @@ impl Prepared<'_> {
          &Metadata,
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
    ) -> Result<Rendered, Error> {
-      Ok(Rendered {
-         content: lx_md::emit(self.to_render, Some(highlighter), |text| {
-            rewrite(text, &self.data)
-         })?,
-         date: self.date,
-         data: self.data,
-      })
+      let PreparedPage {
+         data,
+         date,
+         kind,
+         body,
+      } = self;
+
+      match body {
+         Body::Markdown(to_render) => Ok(Rendered {
+            content: lx_md::emit(to_render, Some(highlighter), |text| {
+               rewrite(text, &data)
+            })?,
+            date,
+            data,
+            kind,
+         }),
+         Body::Template(_) => todo!("Template rendering is not implemented!"),
+      }
    }
 }
 
@@ -72,6 +182,7 @@ pub struct Rendered {
    content: lx_md::Rendered,
    date: Option<DateTime<FixedOffset>>,
    data: Metadata,
+   kind: Kind,
 }
 
 /// Source data for a file: where it came from, and its original contents.
@@ -81,6 +192,36 @@ pub struct Source {
    pub path: Utf8PathBuf,
    /// Original contents of the file.
    pub contents: String,
+   /// What kind of file are we working with?
+   pub kind: Kind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Kind {
+   Markdown,
+   Templated,
+   Raw,
+}
+
+impl<P> From<P> for Kind
+where
+   P: AsRef<Utf8Path>,
+{
+   fn from(value: P) -> Self {
+      let extensions: Vec<&str> = value
+         .as_ref()
+         .file_name()
+         .map(|file_name| file_name.split('.').skip(1).collect())
+         .unwrap_or_default();
+
+      if extensions.last() == Some(&"md") {
+         Kind::Markdown
+      } else if extensions.contains(&"lx") {
+         Kind::Templated
+      } else {
+         Kind::Raw
+      }
+   }
 }
 
 /// A unique identifier for an item (page, post, etc.).
@@ -109,6 +250,8 @@ pub struct Page<'s> {
    /// The fully rendered contents of the page.
    pub content: lx_md::Rendered,
 
+   pub kind: Kind,
+
    pub source: &'s Source,
 
    pub path: RootedPath,
@@ -135,6 +278,7 @@ impl<'s> Item<'s> {
          id,
          content: rendered.content,
          data: rendered.data,
+         kind: rendered.kind,
          source,
          path,
       };
@@ -154,8 +298,15 @@ impl<'s> Item<'s> {
       }
    }
 
-   pub fn layout(&self) -> &str {
-      self.data().layout.as_str()
+   pub fn kind(&self) -> Kind {
+      match self {
+         Item::Page(page) => page.kind,
+         Item::Post(post) => post.page.kind,
+      }
+   }
+
+   pub fn layout(&self) -> Option<&str> {
+      self.data().layout.as_deref()
    }
 
    pub fn path(&self) -> &RootedPath {
@@ -172,8 +323,8 @@ impl<'s> Item<'s> {
       }
    }
 
-   pub fn title(&self) -> &str {
-      self.data().title.as_ref()
+   pub fn title(&self) -> Option<&str> {
+      self.data().title.as_deref()
    }
 
    pub fn data(&self) -> &Metadata {
@@ -267,6 +418,9 @@ pub enum Error {
       source: RenderError,
    },
 
+   #[error("front matter fence is never closed")]
+   UnclosedFrontMatter,
+
    #[error("Invalid combination of root '{root}' and slug '{slug}'")]
    BadSlugRoot {
       source: std::path::StripPrefixError,
@@ -316,7 +470,7 @@ impl From<PostAndConfig<'_, '_, '_>> for json_feed::FeedItem {
          id: post.page.id.to_string(),
          url: Some(post.page.path.url(config)),
          external_url: None, // TODO: support for page.link etc.
-         title: Some(post.page.data.title.clone()),
+         title: post.page.data.title.clone(),
          content_text: None, // TODO: use this for microblogging?
          content_html: Some(post.page.content.html().to_string()),
          summary: post
@@ -353,3 +507,165 @@ impl From<PostAndConfig<'_, '_, '_>> for json_feed::FeedItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Collections(HashMap<Id, crate::collection::Id>);
+
+#[cfg(test)]
+mod tests {
+   use super::*;
+
+   fn source(path: &str, contents: &str) -> Source {
+      Source {
+         path: Utf8PathBuf::from(path),
+         contents: String::from(contents),
+         kind: Kind::from(path),
+      }
+   }
+
+   fn cascade() -> Cascade {
+      Cascade::new(&[]).unwrap()
+   }
+
+   fn prepared_page<'e>(source: &'e Source, cascade: &Cascade) -> PreparedPage<'e> {
+      match prepare(source, cascade).unwrap() {
+         Prepared::Page(page) => *page,
+         Prepared::Raw(_) => panic!("expected a page"),
+      }
+   }
+
+   #[test]
+   fn classifies_markdown_as_primary_content() {
+      assert_eq!(Kind::from("content/index.md"), Kind::Markdown);
+      assert_eq!(Kind::from("content/essays/jj init.md"), Kind::Markdown);
+   }
+
+   #[test]
+   fn markdown_wins_over_explicit_templating() {
+      assert_eq!(Kind::from("content/foo.lx.md"), Kind::Markdown);
+   }
+
+   #[test]
+   fn classifies_terminal_lx_as_templated() {
+      assert_eq!(Kind::from("content/foo.lx"), Kind::Templated);
+   }
+
+   #[test]
+   fn classifies_lx_in_extension_chain_as_templated() {
+      assert_eq!(Kind::from("content/foo.lx.xml"), Kind::Templated);
+      assert_eq!(
+         Kind::from("content/foo.lx.fancy.extension.chain"),
+         Kind::Templated
+      );
+      assert_eq!(Kind::from("content/foo.bar.lx.xml"), Kind::Templated);
+   }
+
+   #[test]
+   fn does_not_mistake_a_named_stem_for_an_lx_extension() {
+      assert_eq!(Kind::from("content/lx.xml"), Kind::Raw);
+      assert_eq!(Kind::from("content/md"), Kind::Raw);
+   }
+
+   #[test]
+   fn classifies_everything_else_as_raw() {
+      assert_eq!(Kind::from("content/foo.xml"), Kind::Raw);
+      assert_eq!(Kind::from("content/foo.html"), Kind::Raw);
+      assert_eq!(Kind::from("content/data.json"), Kind::Raw);
+      assert_eq!(Kind::from("content/extensionless"), Kind::Raw);
+   }
+
+   #[test]
+   fn splits_front_matter_from_body() {
+      let parsed = FrontMatter::parse("---\nlayout: base.jinja\n---\nhello\n").unwrap();
+
+      assert_eq!(parsed.metadata, Some("layout: base.jinja\n"));
+      assert_eq!(parsed.body, "hello\n");
+   }
+
+   #[test]
+   fn front_matter_is_none_when_the_fence_is_absent() {
+      let parsed = FrontMatter::parse("hello").unwrap();
+
+      assert_eq!(parsed.metadata, None);
+      assert_eq!(parsed.body, "hello");
+   }
+
+   #[test]
+   fn prepares_raw_sources_without_rendering() {
+      let source = source("content/data.json", "{}");
+
+      assert!(matches!(prepare(&source, &cascade()), Ok(Prepared::Raw(_))));
+   }
+
+   #[test]
+   fn parses_fenced_front_matter() {
+      let source = source(
+         "content/feed.lx.xml",
+         "---\nlayout: feed.jinja\ntitle: Feed\n---\nbody",
+      );
+      let prepared = prepared_page(&source, &cascade());
+
+      assert_eq!(prepared.data.title.as_deref(), Some("Feed"));
+      assert_eq!(prepared.data.layout.as_deref(), Some("feed.jinja"));
+      assert!(matches!(&prepared.body, Body::Template(body) if *body == "body"));
+   }
+
+   #[test]
+   fn absent_fence_treats_the_whole_source_as_body() {
+      let source = source("content/body.lx", "just a body");
+      let prepared = prepared_page(&source, &cascade());
+
+      assert_eq!(prepared.data.title, None);
+      assert_eq!(prepared.data.layout, None);
+      assert!(matches!(&prepared.body, Body::Template(body) if *body == "just a body"));
+   }
+
+   #[test]
+   fn empty_front_matter_is_an_empty_mapping() {
+      let source = source("content/empty.lx", "---\n---\nbody");
+      let prepared = prepared_page(&source, &cascade());
+
+      assert_eq!(prepared.data.title, None);
+      assert!(matches!(&prepared.body, Body::Template(body) if *body == "body"));
+   }
+
+   #[test]
+   fn preserves_multiline_bodies() {
+      let source = source(
+         "content/multiline.lx",
+         "---\nlayout: base.jinja\n---\nhello\nworld\n",
+      );
+      let prepared = prepared_page(&source, &cascade());
+
+      assert!(
+         matches!(&prepared.body, Body::Template(body) if *body == "hello\nworld\n")
+      );
+   }
+
+   #[test]
+   fn rejects_malformed_yaml() {
+      let source = source("content/bad.lx", "---\nnot: valid: yaml\n---\nbody");
+
+      assert!(matches!(
+         prepare(&source, &cascade()),
+         Err(Error::MetadataParsing { .. })
+      ));
+   }
+
+   #[test]
+   fn rejects_an_unclosed_fence() {
+      let source = source("content/unclosed.lx", "---\nlayout: base.jinja\nbody");
+
+      assert!(matches!(
+         prepare(&source, &cascade()),
+         Err(Error::UnclosedFrontMatter)
+      ));
+   }
+
+   #[test]
+   fn rejects_front_matter_that_is_not_a_mapping() {
+      let source = source("content/sequence.lx", "---\n- one\n- two\n---\nbody");
+
+      assert!(matches!(
+         prepare(&source, &cascade()),
+         Err(Error::MetadataParsing { .. })
+      ));
+   }
+}

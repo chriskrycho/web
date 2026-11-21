@@ -21,13 +21,15 @@ use self::cascade::Cascade;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Metadata {
    /// The title of the item.
-   pub title: String,
+   pub title: Option<String>,
 
    /// The path to this piece of content.
    pub slug: Slug,
 
-   /// Which layout should be used to render this?
-   pub layout: String,
+   /// Which layout should be used to render this? Optional because it’s possible for the
+   /// answer to be “none”: in the case of a standalone, non-`.lx.<something>` template,
+   /// I will render it but *not* supply a layout for it; it will just be its own layout.
+   pub layout: Option<String>,
 
    pub book: Option<Book>,
    pub featured: bool,
@@ -51,7 +53,7 @@ impl Metadata {
       item: serial::Item,
       source: &page::Source,
       cascade: &Cascade,
-      default_template_name: String,
+      default_layout: Option<String>,
    ) -> Result<(Self, Option<DateTime<FixedOffset>>), Error> {
       let permalink = item.permalink.map(|permalink| {
          permalink
@@ -67,11 +69,7 @@ impl Metadata {
 
       let work = MusicalWork::resolved(item.work, cascade.work(dir))?;
 
-      let title = work
-         .as_ref()
-         .map(|work| work.title.clone())
-         .or(item.title)
-         .ok_or_else(|| Error::MissingRequiredField { name: "title" })?;
+      let title = work.as_ref().map(|work| work.title.clone()).or(item.title);
 
       let render = |s: String| Rendered::markdown(&s, None);
 
@@ -80,10 +78,7 @@ impl Metadata {
          slug: Slug::new(permalink.as_deref(), &source.path)?,
          subtitle: item.subtitle.map(render).transpose()?,
          link: item.link, // I don’t *think* this makes sense to have in the cascade.
-         layout: item
-            .layout
-            .or(cascade.layout(dir))
-            .unwrap_or(default_template_name),
+         layout: item.layout.or(cascade.layout(dir)).or(default_layout),
          summary: item.summary.map(render).transpose()?,
          qualifiers: {
             let from_item = item.qualifiers.unwrap_or_default();

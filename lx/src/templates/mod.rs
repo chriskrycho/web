@@ -69,12 +69,16 @@ where
 pub fn render(env: &Environment, item: &Item, config: &Config) -> Result<String, Error> {
    debug!(
       "Rendering page '{}' ({:?}) with layout '{}'",
-      item.title(),
+      item.title().unwrap_or("<untitled>"),
       item.path(),
-      item.layout()
+      item.layout().unwrap_or("<none>")
    );
 
-   env.get_template(item.layout())
+   let Some(layout) = item.layout() else {
+      return Ok(item.content().html().to_string());
+   };
+
+   env.get_template(layout)
       .map_err(|source| Error::MissingTemplate {
          source,
          path: item.source().path.clone(),

@@ -16,7 +16,7 @@ use crate::{
    },
    error::write_to_fmt,
    live_reload,
-   page::{self, Item, Source},
+   page::{self, Item, Kind, Source},
    style, templates,
 };
 
@@ -83,10 +83,15 @@ pub fn build(
       // NOTE: this is where I will want to add handling for `<page>.lx.yaml` files; when
       // I add support for that, this will not be a filter but will do different things in
       // the map call depending on what kind of file it is.
-      .filter(|source| source.path.extension().is_some_and(|ext| ext == "md"))
+      .filter(|source| source.kind == Kind::Markdown)
       .map(|source| {
          page::prepare(source, &cascade)
-            .map(|prepared| (prepared, source))
+            .map(|prepared| match prepared {
+               page::Prepared::Page(prepared) => (prepared, source),
+               page::Prepared::Raw(_) => {
+                  unreachable!("build only prepares Markdown sources")
+               }
+            })
             .map_err(|e| (source.path.clone(), e))
       })
       .partition_map(Either::from);
@@ -143,7 +148,11 @@ pub fn build(
       let relative_path = item.path().as_ref().join("index.html");
       let path = config.output.join(relative_path);
 
-      trace!("writing page {} to {}", item.title(), path);
+      trace!(
+         "writing page {} to {}",
+         item.title().unwrap_or("<untitled>"),
+         path
+      );
       let containing_dir = path
          .parent()
          .unwrap_or_else(|| panic!("{path} should have a containing dir!"));
@@ -250,6 +259,7 @@ where
       let path = path.as_ref();
       match fs::read_to_string(path) {
          Ok(contents) => sources.push(Source {
+            kind: Kind::from(path),
             path: path.to_owned(),
             contents,
          }),
