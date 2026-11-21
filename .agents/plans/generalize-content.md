@@ -97,3 +97,7 @@ Each step ends with a focused test run, relevant package checks, a diff summary,
 - Collision detection covers exact paths and ancestor/descendant path conflicts.
 - Existing Markdown metadata and output behavior is unchanged apart from sharing the common layout resolver and rendering helper.
 - No README or implementation comments are added in this work.
+
+## Addendum
+
+In future work, update `Archive` to follow the same model as `Collection`: it should refer to content by `Id` rather than depending on `Item`/`Post` directly. `Archive` does not need the item itself; it only needs the `Id` that points to the relevant content.
