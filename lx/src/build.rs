@@ -2,7 +2,7 @@ use std::{error, fmt, fs, io};
 
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
-use chrono::Utc;
+use jiff::{Timestamp, fmt::temporal::DateTimePrinter, tz::Offset};
 use lazy_static::lazy_static;
 use log::{debug, trace};
 use rayon::{iter::Either, prelude::*};
@@ -86,7 +86,7 @@ pub fn build(
       // the map call depending on what kind of file it is.
       .filter(|source| source.kind == Kind::Markdown)
       .map(|source| {
-         page::prepare(source, &cascade)
+         page::prepare(source, &cascade, config)
             .map(|prepared| match prepared {
                page::Prepared::Page(prepared) => (prepared, source),
                page::Prepared::Raw(_) => {
@@ -133,7 +133,8 @@ pub fn build(
    let archive = Archive::new(&items).map_err(Error::from)?;
    let render_info = RenderInfo {
       config,
-      build_date: Utc::now().to_rfc3339(),
+      build_date: DateTimePrinter::new()
+         .timestamp_with_offset_to_string(&Timestamp::now(), Offset::UTC),
       archive: &archive,
    };
 

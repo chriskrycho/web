@@ -1,4 +1,3 @@
-use chrono::{Datelike, Month};
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
 use thiserror::Error;
@@ -23,13 +22,25 @@ impl<'e> Archive<'e> {
       });
 
       for post in posts {
-         let year = Year::from(post.date.year_ce().1);
+         // Archive years are positive CE year numbers: ISO year 0 (1 BCE) is archived
+         // as 1, and BCE year `y` is archived as `1 - y`.
+         let year = match post.date.year() {
+            0 => 1,
+            y if y > 0 => u32::try_from(y).expect("positive jiff year fits in u32"),
+            y => u32::try_from(1 - i32::from(y)).expect("BCE year fits in u32"),
+         };
+         let year = Year::from(year);
 
-         let month = post.date.month();
-         let month = Month::try_from(u8::try_from(month).unwrap())
-            .map_err(|source| Error::BadMonth { raw: month, source })?;
+         let month =
+            u8::try_from(post.date.month()).expect("jiff months are in the range 1..=12");
+         let month = Month::try_from(month).map_err(|source| Error::BadMonth {
+            raw: u32::from(month),
+            source,
+         })?;
 
-         let day = Day::try_from(post.date.day()).map_err(Error::from)?;
+         let day =
+            u32::try_from(post.date.day()).expect("jiff days are in the range 1..=31");
+         let day = Day::try_from(day).map_err(Error::from)?;
 
          let month_map = year_map.entry(year).or_default();
          let day_map = month_map.entry(month).or_default();
@@ -49,10 +60,7 @@ pub enum Order {
 #[derive(Debug, Error)]
 pub enum Error {
    #[error("nonsense month value: '{raw}")]
-   BadMonth {
-      raw: u32,
-      source: chrono::OutOfRange,
-   },
+   BadMonth { raw: u32, source: MonthOutOfRange },
 
    #[error(transparent)]
    BadDay {
@@ -71,6 +79,64 @@ impl From<u32> for Year {
    fn from(value: u32) -> Self {
       Self { raw: value }
    }
+}
+
+/// The month of a year.
+///
+/// Jiff has no month type, so this preserves the ordering (`January` through
+/// `December`) and the serialization (the English name of the month) used by the
+/// archive’s map keys.
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
+pub struct Month {
+   raw: u8,
+}
+
+impl Month {
+   /// The English name of the month, e.g. `January`.
+   pub fn name(&self) -> &'static str {
+      const NAMES: [&str; 12] = [
+         "January",
+         "February",
+         "March",
+         "April",
+         "May",
+         "June",
+         "July",
+         "August",
+         "September",
+         "October",
+         "November",
+         "December",
+      ];
+
+      // SAFETY: `Month` is only constructed from `1..=12`, so this cannot be out of
+      // bounds.
+      NAMES[usize::from(self.raw - 1)]
+   }
+}
+
+impl TryFrom<u8> for Month {
+   type Error = MonthOutOfRange;
+
+   fn try_from(value: u8) -> Result<Self, Self::Error> {
+      match value {
+         1..=12 => Ok(Month { raw: value }),
+         wat => Err(MonthOutOfRange { raw: wat }),
+      }
+   }
+}
+
+impl Serialize for Month {
+   fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+      serializer.collect_str(self.name())
+   }
+}
+
+#[derive(Debug, Error)]
+#[error("nonsense month value: '{raw}'")]
+pub struct MonthOutOfRange {
+   raw: u8,
 }
 
 type MonthMap<'p> = IndexMap<Month, DayMap<'p>>;

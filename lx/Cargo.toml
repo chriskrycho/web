@@ -12,7 +12,6 @@ documentation.workspace = true
 anyhow = { workspace = true }
 axum = { version = "0.7.4", default-features = true, features = ["http2", "ws"] }
 camino = { version = "1.1.10", features = ["serde1"] }
-chrono = { version = "0.4", features = ["serde"] }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 count-md = { workspace = true }
@@ -49,6 +48,12 @@ tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["fs", "default"] }
 uuid = { version = "1", features = ["serde", "v5"] }
 watchexec = "8"
+jiff = { version = "=1.0.2", default-features = false, features = [
+   "serde",
+   "std",
+   "tzdb-bundle-platform",
+   "tzdb-zoneinfo",
+] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

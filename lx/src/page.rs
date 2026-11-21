@@ -2,13 +2,13 @@ use crate::{
    archive::Archive,
    data::{
       config::Config,
-      item::{self, cascade::Cascade, serial, Metadata, Slug},
+      item::{self, Metadata, Slug, cascade::Cascade, serial},
    },
+   datetime::Date,
    templates,
 };
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
-use chrono::{DateTime, FixedOffset};
 use json_feed::Author;
 use lx_md::{self, RenderError, ToRender};
 use minijinja::Environment;
@@ -18,10 +18,14 @@ use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
 use thiserror::Error;
 use uuid::Uuid;
 
-pub fn prepare<'e>(source: &'e Source, cascade: &Cascade) -> Result<Prepared<'e>, Error> {
+pub fn prepare<'e>(
+   source: &'e Source,
+   cascade: &Cascade,
+   config: &Config,
+) -> Result<Prepared<'e>, Error> {
    match source.kind {
-      Kind::Markdown => prepare_markdown(source, cascade).map(Prepared::page),
-      Kind::Templated => prepare_template(source, cascade).map(Prepared::page),
+      Kind::Markdown => prepare_markdown(source, cascade, config).map(Prepared::page),
+      Kind::Templated => prepare_template(source, cascade, config).map(Prepared::page),
       Kind::Raw => Ok(Prepared::Raw(source)),
    }
 }
@@ -29,6 +33,7 @@ pub fn prepare<'e>(source: &'e Source, cascade: &Cascade) -> Result<Prepared<'e>
 fn prepare_markdown<'e>(
    source: &'e Source,
    cascade: &Cascade,
+   config: &Config,
 ) -> Result<PreparedPage<'e>, Error> {
    let lx_md::Prepared {
       metadata_src,
@@ -44,6 +49,7 @@ fn prepare_markdown<'e>(
             source,
             cascade,
             Some(String::from("base.jinja")), // TODO: not this
+            config,
          )
          .map_err(Error::from)
       })?;
@@ -63,6 +69,7 @@ fn prepare_markdown<'e>(
 fn prepare_template<'e>(
    source: &'e Source,
    cascade: &Cascade,
+   config: &Config,
 ) -> Result<PreparedPage<'e>, Error> {
    let front_matter = FrontMatter::parse(&source.contents)?;
 
@@ -71,8 +78,8 @@ fn prepare_template<'e>(
       None => serial::Item::default(),
    };
 
-   let (data, date) =
-      Metadata::resolved(item_metadata, source, cascade, None).map_err(Error::from)?;
+   let (data, date) = Metadata::resolved(item_metadata, source, cascade, None, config)
+      .map_err(Error::from)?;
 
    Ok(PreparedPage {
       data,
@@ -146,7 +153,7 @@ pub struct PreparedPage<'e> {
    data: Metadata,
 
    /// The date and time of the item, if any.
-   date: Option<DateTime<FixedOffset>>,
+   date: Option<Date>,
 
    kind: Kind,
 
@@ -194,7 +201,7 @@ impl PreparedPage<'_> {
 
 pub struct Rendered {
    content: Content,
-   date: Option<DateTime<FixedOffset>>,
+   date: Option<Date>,
    data: Metadata,
    kind: Kind,
 }
@@ -430,7 +437,7 @@ impl Hash for Page<'_> {
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Post<'e> {
    pub page: Page<'e>,
-   pub date: DateTime<FixedOffset>,
+   pub date: Date,
 }
 
 impl<'e> PartialOrd for Post<'e> {
@@ -596,7 +603,7 @@ pub struct Collections(HashMap<Id, crate::collection::Id>);
 
 #[cfg(test)]
 mod tests {
-   use minijinja::{context, Environment};
+   use minijinja::{Environment, context};
 
    use super::*;
 
@@ -613,7 +620,7 @@ mod tests {
    }
 
    fn prepared_page<'e>(source: &'e Source, cascade: &Cascade) -> PreparedPage<'e> {
-      match prepare(source, cascade).unwrap() {
+      match prepare(source, cascade, &config()).unwrap() {
          Prepared::Page(page) => *page,
          Prepared::Raw(_) => panic!("expected a page"),
       }
@@ -636,7 +643,7 @@ mod tests {
 
    fn config() -> Config {
       serde_yaml::from_str(
-         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\nimage:\n  url: https://example.com/image.png\n",
+         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\ntime_zone: America/Denver\nimage:\n  url: https://example.com/image.png\n",
       )
       .unwrap()
    }
@@ -701,7 +708,10 @@ mod tests {
    fn prepares_raw_sources_without_rendering() {
       let source = source("content/data.json", "{}");
 
-      assert!(matches!(prepare(&source, &cascade()), Ok(Prepared::Raw(_))));
+      assert!(matches!(
+         prepare(&source, &cascade(), &config()),
+         Ok(Prepared::Raw(_))
+      ));
    }
 
    #[test]
@@ -820,7 +830,7 @@ mod tests {
       let source = source("content/bad.lx", "---\nnot: valid: yaml\n---\nbody");
 
       assert!(matches!(
-         prepare(&source, &cascade()),
+         prepare(&source, &cascade(), &config()),
          Err(Error::MetadataParsing { .. })
       ));
    }
@@ -830,7 +840,7 @@ mod tests {
       let source = source("content/unclosed.lx", "---\nlayout: base.jinja\nbody");
 
       assert!(matches!(
-         prepare(&source, &cascade()),
+         prepare(&source, &cascade(), &config()),
          Err(Error::UnclosedFrontMatter)
       ));
    }
@@ -840,8 +850,22 @@ mod tests {
       let source = source("content/sequence.lx", "---\n- one\n- two\n---\nbody");
 
       assert!(matches!(
-         prepare(&source, &cascade()),
+         prepare(&source, &cascade(), &config()),
          Err(Error::MetadataParsing { .. })
       ));
+   }
+
+   #[test]
+   fn resolves_a_local_date_in_the_configured_time_zone() {
+      let source = source(
+         "content/local.md",
+         "---\ntitle: Local\ndate: 2025-06-23 18:55\n---\nbody",
+      );
+      let prepared = prepared_page(&source, &cascade());
+
+      assert_eq!(
+         prepared.date.unwrap().to_rfc3339(),
+         "2025-06-23T18:55:00-06:00"
+      );
    }
 }

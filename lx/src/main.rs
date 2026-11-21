@@ -18,6 +18,7 @@ mod build;
 mod canonicalized;
 mod collection;
 mod data;
+mod datetime;
 mod error;
 mod feed;
 mod light_dark;

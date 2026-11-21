@@ -14,6 +14,7 @@ author:
     Bluesky: https://bsky.app/profile/chriskrycho.com
     Mastodon: https://mastodon.social/@chriskrycho
 output: public
+time_zone: America/Denver
 nav:
   - { type: 'page', title: 'Archive', path: '/archive/' }
   - { type: 'separator' }

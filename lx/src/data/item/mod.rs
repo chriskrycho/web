@@ -4,18 +4,24 @@ pub mod serial;
 use std::{collections::HashMap, fmt, path::StripPrefixError};
 
 use camino::{Utf8Path, Utf8PathBuf};
-use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use slug::slugify;
 use thiserror::Error;
 
-use super::image::Image;
+use super::{config::Config, image::Image};
 use crate::{
    archive::Archive,
+   datetime::{self, Date},
    page::{self, Item},
 };
 
 use self::cascade::Cascade;
+
+/// Parse a date as written in content, resolving local dates in the configured time zone.
+fn parse_date(raw: String, config: &Config) -> Result<Date, Error> {
+   datetime::parse(&raw, &config.time_zone)
+      .map_err(|source| Error::InvalidDate { raw, source })
+}
 
 /// Shared data for both [`Post`]s and [`Page`]s.
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,7 +60,14 @@ impl Metadata {
       source: &page::Source,
       cascade: &Cascade,
       default_layout: Option<String>,
-   ) -> Result<(Self, Option<DateTime<FixedOffset>>), Error> {
+      config: &Config,
+   ) -> Result<(Self, Option<Date>), Error> {
+      let date = item.date.map(|raw| parse_date(raw, config)).transpose()?;
+      let _started = item
+         .started
+         .map(|raw| parse_date(raw, config))
+         .transpose()?;
+
       let permalink = item.permalink.map(|permalink| {
          permalink
             .trim_start_matches('/')
@@ -107,10 +120,13 @@ impl Metadata {
             Vec::new(),
             |mut acc, serial::Update { at, changes }| match at {
                Some(at) => {
-                  acc.push(Update { at, changes });
+                  acc.push(Update {
+                     at: parse_date(at, config)?,
+                     changes,
+                  });
                   Ok(acc)
                }
-               None => Err(FieldError::Update),
+               None => Err(Error::bad_field(FieldError::Update)),
             },
          )?,
          thanks: item
@@ -131,7 +147,7 @@ impl Metadata {
          work,
       };
 
-      Ok((metadata, item.date))
+      Ok((metadata, date))
    }
 }
 
@@ -163,7 +179,7 @@ impl Rendered {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Update {
-   pub at: DateTime<FixedOffset>,
+   pub at: Date,
    pub changes: Option<String>,
 }
 
@@ -484,6 +500,9 @@ pub enum Error {
       reason: String,
       source: Option<StripPrefixError>,
    },
+
+   #[error("invalid date '{raw}'")]
+   InvalidDate { raw: String, source: jiff::Error },
 
    #[error(transparent)]
    Markdown {

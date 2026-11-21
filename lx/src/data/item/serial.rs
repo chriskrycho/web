@@ -7,7 +7,6 @@ use std::{
    fmt::{self},
 };
 
-use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -18,7 +17,9 @@ pub struct Item {
    pub title: Option<String>,
    pub subtitle: Option<String>,
    pub summary: Option<String>,
-   pub date: Option<DateTime<FixedOffset>>,
+   /// When the item was published. Accepts RFC 3339 or a local date/time resolved in
+   /// the site time zone.
+   pub date: Option<String>,
    /// For link items, the URL to the “target” post.
    pub link: Option<String>,
    /// Relative path to specify a different location from the source location.
@@ -26,7 +27,7 @@ pub struct Item {
    pub qualifiers: Option<Qualifiers>,
    /// When was the item first created? Useful for distinguishing between item creation
    /// and item publication, when letting something bake in public for a while.
-   pub started: Option<DateTime<FixedOffset>>,
+   pub started: Option<String>,
    #[serde(default)]
    pub updated: Vec<Update>,
    // --- Begin section of fields also available in AmbientMetadata --- //
@@ -59,7 +60,7 @@ impl Item {
 
 #[derive(Debug, Deserialize)]
 pub struct Update {
-   pub(super) at: Option<DateTime<FixedOffset>>,
+   pub(super) at: Option<String>,
    pub(super) changes: Option<String>,
 }
 

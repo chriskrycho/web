@@ -6,7 +6,11 @@ use minijinja::{
 };
 
 use crate::{
-   data::{config::Config, image::Image, item::Metadata},
+   data::{
+      config::Config,
+      image::Image,
+      item::{Book, MusicalWork, Rendered},
+   },
    page::RootedPath,
 };
 
@@ -51,8 +55,26 @@ fn resolved_image(
       .unwrap_or(from_config.0.url().to_string())
 }
 
+/// The subset of page metadata `description` needs.
+///
+/// MiniJinja cannot deserialize the `ObjectRepr::Plain` dates in `Metadata`, so functions
+/// used in templates take small input structs that omit them.
+#[derive(serde::Deserialize)]
+struct DescriptionData {
+   summary: Option<Rendered>,
+   book: Option<Book>,
+   subtitle: Option<Rendered>,
+}
+
+/// The subset of page metadata `label_for` needs.
+#[derive(serde::Deserialize)]
+struct LabelData {
+   work: Option<MusicalWork>,
+   tags: Vec<String>,
+}
+
 fn description(
-   ViaDeserialize(page_data): ViaDeserialize<Metadata>,
+   ViaDeserialize(page_data): ViaDeserialize<DescriptionData>,
    content: &str,
 ) -> String {
    page_data
@@ -93,7 +115,7 @@ fn fancy_debug(name: Option<&str>, args: Rest<Value>) -> String {
 }
 
 fn label_for(
-   ViaDeserialize(page_data): ViaDeserialize<Metadata>,
+   ViaDeserialize(page_data): ViaDeserialize<LabelData>,
    content: &str,
 ) -> Label {
    Label::new(page_data, content)
@@ -119,7 +141,7 @@ enum Label {
 }
 
 impl Label {
-   pub fn new(page_data: Metadata, content: &str) -> Label {
+   pub fn new(page_data: LabelData, content: &str) -> Label {
       if let Some(work) = page_data.work {
          Label::Work {
             duration: work.duration,
@@ -254,7 +276,7 @@ mod tests {
 
    fn config() -> Config {
       serde_yaml::from_str(
-         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\nimage:\n  url: https://example.com/image.png\n",
+         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\ntime_zone: America/Denver\nimage:\n  url: https://example.com/image.png\n",
       )
       .unwrap()
    }

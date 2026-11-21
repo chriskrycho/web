@@ -1,7 +1,23 @@
 use camino::{Utf8Path, Utf8PathBuf};
-use serde::{Deserialize, Serialize};
+use jiff::tz::TimeZone;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::image::Image;
+
+fn deserialize_time_zone<'de, D>(deserializer: D) -> Result<TimeZone, D::Error>
+where
+   D: Deserializer<'de>,
+{
+   let name = String::deserialize(deserializer)?;
+   TimeZone::get(&name).map_err(serde::de::Error::custom)
+}
+
+fn serialize_time_zone<S>(time_zone: &TimeZone, serializer: S) -> Result<S::Ok, S::Error>
+where
+   S: Serializer,
+{
+   serializer.serialize_str(time_zone.iana_name().unwrap_or("UTC"))
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -12,6 +28,14 @@ pub struct Config {
    pub description: String,
    pub author: serial::Author,
    pub output: Utf8PathBuf,
+   /// The IANA time zone in which local (offset-less) content dates are resolved.
+   /// Required.
+   #[serde(
+      deserialize_with = "deserialize_time_zone",
+      serialize_with = "serialize_time_zone",
+      alias = "timezone"
+   )]
+   pub time_zone: TimeZone,
    pub image: Image,
    #[serde(default)]
    pub nav: Vec<NavItem>,
@@ -28,6 +52,7 @@ impl Config {
          description: serial_cfg.description,
          author: serial_cfg.author,
          output: serial_cfg.output,
+         time_zone: serial_cfg.time_zone,
          image: Image::from(serial_cfg.image),
          nav: serial_cfg.nav,
       })
@@ -53,7 +78,7 @@ pub mod serial {
 
    use crate::data::email::Email;
 
-   #[derive(Serialize, Deserialize, Debug)]
+   #[derive(Deserialize, Debug)]
    pub struct Config {
       pub url: String,
       pub repo: String,
@@ -62,6 +87,10 @@ pub mod serial {
       pub description: String,
       pub author: Author,
       pub output: Utf8PathBuf,
+      /// The IANA time zone in which local (offset-less) content dates are resolved.
+      /// Required.
+      #[serde(deserialize_with = "super::deserialize_time_zone", alias = "timezone")]
+      pub time_zone: jiff::tz::TimeZone,
       pub image: crate::data::image::serial::Image,
       #[serde(default)]
       pub nav: Vec<NavItem>,
