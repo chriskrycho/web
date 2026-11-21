@@ -244,3 +244,30 @@ impl fmt::Display for ApproximateLength {
       write!(f, "About {formatted} words")
    }
 }
+
+#[cfg(test)]
+mod tests {
+   use camino::Utf8Path;
+
+   use super::*;
+   use crate::data::item::Slug;
+
+   fn config() -> Config {
+      serde_yaml::from_str(
+         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\nimage:\n  url: https://example.com/image.png\n",
+      )
+      .unwrap()
+   }
+
+   #[test]
+   fn url_for_joins_the_config_url_and_path() {
+      let path =
+         RootedPath::new(&Slug::Permalink("essays/foo".into()), Utf8Path::new("/"))
+            .unwrap();
+
+      assert_eq!(
+         url_for(ViaDeserialize(path), ViaDeserialize(config())),
+         "https://example.com/essays/foo"
+      );
+   }
+}

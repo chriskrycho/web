@@ -2,13 +2,14 @@ use std::{error, fmt, fs, io};
 
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
+use chrono::Utc;
 use lazy_static::lazy_static;
 use log::{debug, trace};
 use rayon::{iter::Either, prelude::*};
 use thiserror::Error;
 
 use crate::{
-   archive::Archive,
+   archive::{self, Archive},
    canonicalized::Canonicalized,
    data::{
       config::{self, Config},
@@ -16,7 +17,7 @@ use crate::{
    },
    error::write_to_fmt,
    live_reload,
-   page::{self, Item, Kind, Source},
+   page::{self, Item, Kind, RenderInfo, Source},
    style, templates,
 };
 
@@ -124,12 +125,17 @@ pub fn build(
       .partition_map(Either::from);
 
    if !errors.is_empty() {
-      return Err(Error::rendering_page(errors));
+      return Err(Error::rendering_pages(errors));
    }
 
    // TODO: build taxonomies.
    // TODO: Identify the taxonomical system I want to use for the site(s)!
-   let _archive = Archive::new(&items);
+   let archive = Archive::new(&items).map_err(Error::from)?;
+   let render_info = RenderInfo {
+      config,
+      build_date: Utc::now().to_rfc3339(),
+      archive: &archive,
+   };
 
    debug!("Copying {} static files", site_files.static_files.len());
    for static_file in site_files.static_files.iter() {
@@ -144,7 +150,7 @@ pub fn build(
    }
 
    // TODO: this can and probably should use async?
-   for item in items {
+   for item in &items {
       let relative_path = item.path().as_ref().join("index.html");
       let path = config.output.join(relative_path);
 
@@ -162,7 +168,7 @@ pub fn build(
          source: e,
       })?;
 
-      let mut rendered = templates::render(&jinja_env, &item, config)?;
+      let mut rendered = item.render(&jinja_env, &render_info)?;
 
       live_reload::inject_for(mode, &mut rendered).map_err(|source| {
          Error::LiveReload {
@@ -307,6 +313,9 @@ pub enum Error {
    Content(Vec<ContentError>),
 
    #[error(transparent)]
+   Item(#[from] page::Error),
+
+   #[error(transparent)]
    Page(PageError),
 
    #[error("could not create output directory '{path}'")]
@@ -351,6 +360,12 @@ pub enum Error {
    Styles {
       #[from]
       source: style::Error,
+   },
+
+   #[error(transparent)]
+   Archive {
+      #[from]
+      source: archive::Error,
    },
 
    #[error("invalid template path {path}")]
@@ -399,7 +414,7 @@ impl Error {
       })
    }
 
-   fn rendering_page(errors: Vec<(Utf8PathBuf, page::Error)>) -> Error {
+   fn rendering_pages(errors: Vec<(Utf8PathBuf, page::Error)>) -> Error {
       Error::Page(PageError {
          errors,
          kind: PageErrorKind::Render,

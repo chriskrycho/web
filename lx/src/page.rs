@@ -1,12 +1,17 @@
-use crate::data::{
-   config::Config,
-   item::{self, cascade::Cascade, serial, Metadata, Slug},
+use crate::{
+   archive::Archive,
+   data::{
+      config::Config,
+      item::{self, cascade::Cascade, serial, Metadata, Slug},
+   },
+   templates,
 };
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, FixedOffset};
 use json_feed::Author;
 use lx_md::{self, RenderError, ToRender};
+use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, error};
 use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
@@ -324,17 +329,21 @@ impl<'s> Item<'s> {
       Ok(item)
    }
 
+   pub fn render(&self, env: &Environment, info: &RenderInfo) -> Result<String, Error> {
+      match self.layout() {
+         Some(layout) => templates::render(env, layout, Context::new(info, self))
+            .map_err(|source| Error::RenderTemplate {
+               path: self.path().as_ref().to_owned(),
+               source,
+            }),
+         None => Ok(self.content().html().into()),
+      }
+   }
+
    pub fn content(&self) -> &Content {
       match self {
          Item::Page(page) => &page.content,
          Item::Post(post) => &post.page.content,
-      }
-   }
-
-   pub fn kind(&self) -> Kind {
-      match self {
-         Item::Page(page) => page.kind,
-         Item::Post(post) => post.page.kind,
       }
    }
 
@@ -368,6 +377,37 @@ impl<'s> Item<'s> {
    }
 }
 
+pub struct RenderInfo<'a> {
+   pub config: &'a Config,
+   pub build_date: String,
+   pub archive: &'a Archive<'a>,
+}
+
+#[derive(Serialize)]
+struct Context<'i, 'a> {
+   content: &'i str,
+   data: &'i Metadata,
+   path: &'i RootedPath,
+   source: &'i Source,
+   config: &'i Config,
+   build_date: &'i str,
+   archive: &'i Archive<'a>,
+}
+
+impl<'i, 'a> Context<'i, 'a> {
+   fn new(render_info: &'i RenderInfo<'a>, item: &'i Item) -> Context<'i, 'a> {
+      Context {
+         content: item.content().html(),
+         data: item.data(),
+         path: item.path(),
+         source: item.source(),
+         config: render_info.config,
+         build_date: &render_info.build_date,
+         archive: render_info.archive,
+      }
+   }
+}
+
 // NOTE: the following all assume stable, unique identifiers for pages. The existing
 //   implementation *does* handle this because it creates a v5 UUID from the path to the
 //   file, which by definition must be unique (you cannot have two files with the same
@@ -386,6 +426,7 @@ impl Hash for Page<'_> {
    }
 }
 
+/// A `Post` is simply a [`Page`] that has a date.
 #[derive(Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Post<'e> {
    pub page: Page<'e>,
@@ -446,13 +487,19 @@ pub enum Error {
    },
 
    #[error(transparent)]
-   Render {
+   RenderMarkdown {
       #[from]
       source: RenderError,
    },
 
    #[error("front matter fence is never closed")]
    UnclosedFrontMatter,
+
+   #[error("could not render template for item at {path}: {source}")]
+   RenderTemplate {
+      path: Utf8PathBuf,
+      source: templates::Error,
+   },
 
    #[error("Invalid combination of root '{root}' and slug '{slug}'")]
    BadSlugRoot {
@@ -572,6 +619,28 @@ mod tests {
       }
    }
 
+   fn item<'e>(source: &'e Source, cascade: &Cascade) -> Item<'e> {
+      let prepared = prepared_page(source, cascade);
+      let rendered = prepared
+         .render(&mut Highlighter::new(), |text, _| Ok(text.to_owned()))
+         .unwrap();
+      Item::from_rendered(rendered, source, Utf8Path::new("content")).unwrap()
+   }
+
+   fn post(name: &str, date: &str) -> Source {
+      source(
+         &format!("content/{name}.md"),
+         &format!("---\ntitle: {name}\ndate: {date}\n---\nbody"),
+      )
+   }
+
+   fn config() -> Config {
+      serde_yaml::from_str(
+         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\nimage:\n  url: https://example.com/image.png\n",
+      )
+      .unwrap()
+   }
+
    #[test]
    fn classifies_markdown_as_primary_content() {
       assert_eq!(Kind::from("content/index.md"), Kind::Markdown);
@@ -677,6 +746,42 @@ mod tests {
 
       assert!(
          matches!(&prepared.body, Body::Template(body) if *body == "hello\nworld\n")
+      );
+   }
+
+   #[test]
+   fn renders_layouts_with_build_context() {
+      let mut cascade = cascade();
+      cascade.add_at(
+         "content",
+         serial::Ambient {
+            layout: Some("wrapper.jinja".into()),
+            ..Default::default()
+         },
+      );
+      let sources = vec![
+         post("a", "2022-01-01T00:00:00-05:00"),
+         post("b", "2023-01-01T00:00:00-05:00"),
+      ];
+      let items: Vec<_> = sources.iter().map(|s| item(s, &cascade)).collect();
+      let archive = crate::archive::Archive::new(&items).unwrap();
+      let config = config();
+      let info = RenderInfo {
+         config: &config,
+         build_date: "2024-01-01T00:00:00+00:00".into(),
+         archive: &archive,
+      };
+
+      let mut env = Environment::new();
+      env.add_template(
+         "wrapper.jinja",
+         "{{ content }}|{{ build_date }}|{{ archive | length }}",
+      )
+      .unwrap();
+
+      assert_eq!(
+         items[0].render(&env, &info).unwrap(),
+         "<p>body</p>\n|2024-01-01T00:00:00+00:00|2"
       );
    }
 

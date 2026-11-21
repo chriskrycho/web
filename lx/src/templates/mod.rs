@@ -3,10 +3,9 @@ mod functions;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use log::{debug, trace};
-use minijinja::{Environment, context};
+use minijinja::Environment;
+use serde::Serialize;
 use thiserror::Error;
-
-use crate::{data::config::Config, page::Item};
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -16,10 +15,10 @@ pub enum Error {
       source: std::io::Error,
    },
 
-   #[error("could not render template for {path}")]
+   #[error("could not render template {layout}: {source}")]
    Render {
       source: minijinja::Error,
-      path: Utf8PathBuf,
+      layout: String,
    },
 
    #[error("could not add template for {path}")]
@@ -28,10 +27,10 @@ pub enum Error {
       path: Utf8PathBuf,
    },
 
-   #[error("could not load template for {path}: {source}")]
+   #[error("could not load template {name} for: {source}")]
    MissingTemplate {
+      name: String,
       source: minijinja::Error,
-      path: Utf8PathBuf,
    },
 
    #[error(transparent)]
@@ -66,32 +65,19 @@ where
    Ok(env)
 }
 
-pub fn render(env: &Environment, item: &Item, config: &Config) -> Result<String, Error> {
-   debug!(
-      "Rendering page '{}' ({:?}) with layout '{}'",
-      item.title().unwrap_or("<untitled>"),
-      item.path(),
-      item.layout().unwrap_or("<none>")
-   );
-
-   let Some(layout) = item.layout() else {
-      return Ok(item.content().html().to_string());
-   };
-
+pub fn render(
+   env: &Environment,
+   layout: &str,
+   context: impl Serialize,
+) -> Result<String, Error> {
    env.get_template(layout)
       .map_err(|source| Error::MissingTemplate {
          source,
-         path: item.source().path.clone(),
+         name: layout.to_string(),
       })?
-      .render(context! {
-         content => item.content().html(),
-         data => item.data(),
-         config,
-         path => item.path(),
-         source => item.source(),
-      })
+      .render(context)
       .map_err(|source| Error::Render {
          source,
-         path: item.source().path.clone(),
+         layout: layout.to_string(),
       })
 }
