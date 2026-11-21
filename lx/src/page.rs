@@ -8,7 +8,7 @@ use chrono::{DateTime, FixedOffset};
 use json_feed::Author;
 use lx_md::{self, RenderError, ToRender};
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, error};
 use std::{collections::HashMap, fmt, hash::Hash, os::unix::prelude::OsStrExt};
 use thiserror::Error;
 use uuid::Uuid;
@@ -152,7 +152,7 @@ impl PreparedPage<'_> {
    pub fn render(
       self,
       highlighter: &mut Highlighter,
-      rewrite: impl Fn(
+      postprocess: impl Fn(
          &str,
          &Metadata,
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
@@ -164,25 +164,58 @@ impl PreparedPage<'_> {
          body,
       } = self;
 
-      match body {
-         Body::Markdown(to_render) => Ok(Rendered {
-            content: lx_md::emit(to_render, Some(highlighter), |text| {
-               rewrite(text, &data)
-            })?,
-            date,
-            data,
-            kind,
-         }),
-         Body::Template(_) => todo!("Template rendering is not implemented!"),
-      }
+      let content = match body {
+         Body::Markdown(to_render) => lx_md::emit(to_render, Some(highlighter), |text| {
+            postprocess(text, &data)
+         })
+         .map(Content::FromMd)?,
+
+         Body::Template(template) => postprocess(template, &data)
+            .map_err(|source| Error::Postprocess {
+               source,
+               original: template.to_string(),
+            })
+            .map(Content::FromTemplate)?,
+      };
+
+      Ok(Rendered {
+         content,
+         date,
+         data,
+         kind,
+      })
    }
 }
 
 pub struct Rendered {
-   content: lx_md::Rendered,
+   content: Content,
    date: Option<DateTime<FixedOffset>>,
    data: Metadata,
    kind: Kind,
+}
+
+#[derive(Debug)]
+pub enum Content {
+   FromMd(lx_md::Rendered),
+   FromTemplate(String),
+}
+
+impl Content {
+   pub fn html(&self) -> &str {
+      match self {
+         Content::FromMd(rendered) => rendered.html(),
+         Content::FromTemplate(body) => body,
+      }
+   }
+}
+
+impl serde::Serialize for Content {
+   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+   where
+      S: serde::Serializer,
+   {
+      serializer.serialize_str(self.html())
+   }
 }
 
 /// Source data for a file: where it came from, and its original contents.
@@ -248,7 +281,7 @@ pub struct Page<'s> {
    pub data: Metadata,
 
    /// The fully rendered contents of the page.
-   pub content: lx_md::Rendered,
+   pub content: Content,
 
    pub kind: Kind,
 
@@ -291,7 +324,7 @@ impl<'s> Item<'s> {
       Ok(item)
    }
 
-   pub fn content(&self) -> &lx_md::Rendered {
+   pub fn content(&self) -> &Content {
       match self {
          Item::Page(page) => &page.content,
          Item::Post(post) => &post.page.content,
@@ -427,6 +460,12 @@ pub enum Error {
       root: Utf8PathBuf,
       slug: Utf8PathBuf,
    },
+
+   #[error("error rendering Jinja template")]
+   Postprocess {
+      source: Box<dyn error::Error + Send + Sync>,
+      original: String,
+   },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -510,6 +549,8 @@ pub struct Collections(HashMap<Id, crate::collection::Id>);
 
 #[cfg(test)]
 mod tests {
+   use minijinja::{context, Environment};
+
    use super::*;
 
    fn source(path: &str, contents: &str) -> Source {
@@ -636,6 +677,36 @@ mod tests {
 
       assert!(
          matches!(&prepared.body, Body::Template(body) if *body == "hello\nworld\n")
+      );
+   }
+
+   #[test]
+   fn renders_a_standalone_body_template_without_a_layout() {
+      let source = source(
+         "content/standalone.lx",
+         "---\ntitle: Standalone\n---\nHello, {{ data.title }} from {{ source.path }}!",
+      );
+      let prepared = prepared_page(&source, &cascade());
+
+      let rendered = prepared
+         .render(&mut Highlighter::new(), |text, _| {
+            let env = Environment::new();
+            env.render_str(
+               text,
+               context! {
+                  data => context! {
+                     title => "Standalone",
+                  },
+                  source => source,
+               },
+            )
+            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
+         })
+         .unwrap();
+
+      assert_eq!(
+         rendered.content.html(),
+         "Hello, Standalone from content/standalone.lx!"
       );
    }
 

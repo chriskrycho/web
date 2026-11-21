@@ -65,8 +65,8 @@ pub enum Error {
       source: latex2mathml::LatexError,
    },
 
-   #[error("Could not rewrite text")]
-   Rewrite {
+   #[error("Could not postprocess text")]
+   Postprocess {
       source: Box<dyn error::Error + Send + Sync>,
       original: String,
    },
@@ -121,7 +121,7 @@ impl<'e> State<'e, '_> {
                   }
                   _ => {
                      let rewritten =
-                        rewrite(text.as_ref()).map_err(|source| Error::Rewrite {
+                        rewrite(text.as_ref()).map_err(|source| Error::Postprocess {
                            source,
                            original: text.to_string(),
                         })?;

@@ -112,10 +112,10 @@ pub fn build(
          // TODO: once the taxonomies exist, pass them here.
          prepared
             .render(&mut highlighter.fork(), |text, metadata| {
+               // TODO: smarten the typography!
                let after_jinja = jinja_env
                   .render_str(text, metadata)
                   .map_err(|source| Error::rewrite(source, text))?;
-               // TODO: smarten the typography!
                Ok(after_jinja)
             })
             .and_then(|rendered| Item::from_rendered(rendered, source, &content_dir))

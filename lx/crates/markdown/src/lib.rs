@@ -215,6 +215,12 @@ impl Rendered {
    }
 }
 
+impl From<String> for Rendered {
+   fn from(value: String) -> Self {
+      Self(value)
+   }
+}
+
 fn bad_prepare_state<T>(state: &impl Debug, context: &impl Debug) -> Result<T, Error> {
    Err(Error::from(PrepareError::State {
       state: format!("{state:?}"),
