@@ -12,6 +12,7 @@ This is `lx` (⚡️), a hyper-specialized static site generator for Chris Krych
 - Agents never try to implement a task in one pass. Use TDD and complete one incremental step at a time.
 - Each TDD step requires my explicit approval before the next step begins.
 - No single implementation step may change more than 200 lines.
+- Agents must not introduce new architectural layers autonomously: *always* stop and ask.
 
 ## Architecture
 
