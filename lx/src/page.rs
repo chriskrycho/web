@@ -155,8 +155,6 @@ pub struct PreparedPage<'e> {
    /// The date and time of the item, if any.
    date: Option<Date>,
 
-   kind: Kind,
-
    body: Body<'e>,
 }
 
@@ -169,12 +167,7 @@ impl PreparedPage<'_> {
          &Metadata,
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
    ) -> Result<Rendered, Error> {
-      let PreparedPage {
-         data,
-         date,
-         kind,
-         body,
-      } = self;
+      let PreparedPage { data, date, body } = self;
 
       let content = match body {
          Body::Markdown(to_render) => lx_md::emit(to_render, Some(highlighter), |text| {
@@ -194,7 +187,6 @@ impl PreparedPage<'_> {
          content,
          date,
          data,
-         kind,
       })
    }
 }
@@ -203,7 +195,6 @@ pub struct Rendered {
    content: Content,
    date: Option<Date>,
    data: Metadata,
-   kind: Kind,
 }
 
 #[derive(Debug)]
@@ -295,8 +286,6 @@ pub struct Page<'s> {
    /// The fully rendered contents of the page.
    pub content: Content,
 
-   pub kind: Kind,
-
    pub source: &'s Source,
 
    pub path: RootedPath,
@@ -323,7 +312,6 @@ impl<'s> Item<'s> {
          id,
          content: rendered.content,
          data: rendered.data,
-         kind: rendered.kind,
          source,
          path,
       };
