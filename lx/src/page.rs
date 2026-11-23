@@ -684,7 +684,7 @@ pub struct Collections(HashMap<Id, crate::collection::Id>);
 
 #[cfg(test)]
 mod tests {
-   use minijinja::{Environment, context};
+   use minijinja::Environment;
 
    use super::*;
 
@@ -700,43 +700,11 @@ mod tests {
       Cascade::new(&[]).unwrap()
    }
 
-   fn prepared_page<'e>(source: &'e Source, cascade: &Cascade) -> PreparedPage<'e> {
-      match prepare(source, cascade, &config()).unwrap() {
-         Prepared::Page(page) => *page,
-         Prepared::Raw(_) => panic!("expected a page"),
-      }
-   }
-
-   fn item<'e>(source: &'e Source, cascade: &Cascade) -> Item<'e> {
-      let prepared = prepared_page(source, cascade);
-      let rendered = {
-         let highlighter: &mut Highlighter = &mut Highlighter::new();
-         let postprocess = |text: &str, _| Ok(text.to_owned());
-         let PreparedPage { data, date, body } = prepared;
-         let content = match body {
-            Body::Markdown(to_render) => {
-               lx_md::emit(to_render, Some(highlighter), |text| {
-                  postprocess(text, &data)
-               })
-               .map(Content::FromMd)
-               .unwrap()
-            }
-
-            Body::Template(template) => postprocess(template, &data)
-               .map_err(|source| Error::Postprocess {
-                  source,
-                  original: template.to_string(),
-               })
-               .map(Content::FromTemplate)
-               .unwrap(),
-         };
-         Processed::Item {
-            content,
-            date,
-            data,
-         }
-      };
-      Item::from_processed(rendered, source, Utf8Path::new("content")).unwrap()
+   fn config() -> Config {
+      serde_yaml::from_str(
+         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\ntime_zone: America/Denver\nimage:\n  url: https://example.com/image.png\n",
+      )
+      .unwrap()
    }
 
    fn post(name: &str, date: &str) -> Source {
@@ -746,11 +714,30 @@ mod tests {
       )
    }
 
-   fn config() -> Config {
-      serde_yaml::from_str(
-         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\ntime_zone: America/Denver\nimage:\n  url: https://example.com/image.png\n",
-      )
-      .unwrap()
+   fn item<'e>(source: &'e Source, cascade: &Cascade) -> Item<'e> {
+      prepare(source, cascade, &config())
+         .unwrap()
+         .process(&mut Highlighter::new(), |text, _| Ok(text.to_owned()))
+         .and_then(|processed| {
+            Item::from_processed(processed, source, Utf8Path::new("content"))
+         })
+         .unwrap()
+   }
+
+   fn body<'a>(item: &'a Item<'a>) -> &'a str {
+      match &item.content {
+         ItemContent::Page(page) => page.content.as_ref(),
+         ItemContent::Post(post) => post.page.content.as_ref(),
+         ItemContent::Raw(content) => content.as_ref(),
+      }
+   }
+
+   fn render_info<'a>(config: &'a Config, archive: &'a Archive<'a>) -> RenderInfo<'a> {
+      RenderInfo {
+         config,
+         built_at: "2024-01-01T00:00:00+00:00".into(),
+         archive,
+      }
    }
 
    #[test]
@@ -794,29 +781,12 @@ mod tests {
    }
 
    #[test]
-   fn splits_front_matter_from_body() {
-      let parsed = FrontMatter::parse("---\nlayout: base.jinja\n---\nhello\n").unwrap();
-
-      assert_eq!(parsed.metadata, Some("layout: base.jinja\n"));
-      assert_eq!(parsed.body, "hello\n");
-   }
-
-   #[test]
-   fn front_matter_is_none_when_the_fence_is_absent() {
-      let parsed = FrontMatter::parse("hello").unwrap();
-
-      assert_eq!(parsed.metadata, None);
-      assert_eq!(parsed.body, "hello");
-   }
-
-   #[test]
    fn prepares_raw_sources_without_rendering() {
       let source = source("content/data.json", "{}");
+      let raw = item(&source, &cascade());
 
-      assert!(matches!(
-         prepare(&source, &cascade(), &config()),
-         Ok(Prepared::Raw(_))
-      ));
+      assert!(matches!(raw.content, ItemContent::Raw(_)));
+      assert_eq!(body(&raw), "{}");
    }
 
    #[test]
@@ -825,30 +795,32 @@ mod tests {
          "content/feed.lx.xml",
          "---\nlayout: feed.jinja\ntitle: Feed\n---\nbody",
       );
-      let prepared = prepared_page(&source, &cascade());
+      let item = item(&source, &cascade());
+      let data = item.data().unwrap();
 
-      assert_eq!(prepared.data.title.as_deref(), Some("Feed"));
-      assert_eq!(prepared.data.layout.as_deref(), Some("feed.jinja"));
-      assert!(matches!(&prepared.body, Body::Template(body) if *body == "body"));
+      assert_eq!(data.title.as_deref(), Some("Feed"));
+      assert_eq!(data.layout.as_deref(), Some("feed.jinja"));
+      assert_eq!(body(&item), "body");
    }
 
    #[test]
    fn absent_fence_treats_the_whole_source_as_body() {
       let source = source("content/body.lx", "just a body");
-      let prepared = prepared_page(&source, &cascade());
+      let item = item(&source, &cascade());
+      let data = item.data().unwrap();
 
-      assert_eq!(prepared.data.title, None);
-      assert_eq!(prepared.data.layout, None);
-      assert!(matches!(&prepared.body, Body::Template(body) if *body == "just a body"));
+      assert_eq!(data.title, None);
+      assert_eq!(data.layout, None);
+      assert_eq!(body(&item), "just a body");
    }
 
    #[test]
    fn empty_front_matter_is_an_empty_mapping() {
       let source = source("content/empty.lx", "---\n---\nbody");
-      let prepared = prepared_page(&source, &cascade());
+      let item = item(&source, &cascade());
 
-      assert_eq!(prepared.data.title, None);
-      assert!(matches!(&prepared.body, Body::Template(body) if *body == "body"));
+      assert_eq!(item.title(), None);
+      assert_eq!(body(&item), "body");
    }
 
    #[test]
@@ -857,11 +829,9 @@ mod tests {
          "content/multiline.lx",
          "---\nlayout: base.jinja\n---\nhello\nworld\n",
       );
-      let prepared = prepared_page(&source, &cascade());
+      let item = item(&source, &cascade());
 
-      assert!(
-         matches!(&prepared.body, Body::Template(body) if *body == "hello\nworld\n")
-      );
+      assert_eq!(body(&item), "hello\nworld\n");
    }
 
    #[test]
@@ -888,13 +858,9 @@ mod tests {
          })
          .collect();
 
-      let archive = crate::archive::Archive::new(posts).unwrap();
+      let archive = Archive::new(posts).unwrap();
       let config = config();
-      let info = RenderInfo {
-         config: &config,
-         built_at: "2024-01-01T00:00:00+00:00".into(),
-         archive: &archive,
-      };
+      let info = render_info(&config, &archive);
 
       let mut env = Environment::new();
       env.add_template(
@@ -915,54 +881,13 @@ mod tests {
          "content/standalone.lx",
          "---\ntitle: Standalone\n---\nHello, {{ data.title }} from {{ source.path }}!",
       );
-      let prepared = prepared_page(&source, &cascade());
-
-      let rendered = {
-         let highlighter: &mut Highlighter = &mut Highlighter::new();
-         let postprocess = |text: &str, _| {
-            let env = Environment::new();
-            env.render_str(
-               text,
-               context! {
-                  data => context! {
-                     title => "Standalone",
-                  },
-                  source => source,
-               },
-            )
-            .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
-         };
-         let PreparedPage { data, date, body } = prepared;
-         let content = match body {
-            Body::Markdown(to_render) => {
-               lx_md::emit(to_render, Some(highlighter), |text| {
-                  postprocess(text, &data)
-               })
-               .map(Content::FromMd)
-               .unwrap()
-            }
-
-            Body::Template(template) => postprocess(template, &data)
-               .map_err(|source| Error::Postprocess {
-                  source,
-                  original: template.to_string(),
-               })
-               .map(Content::FromTemplate)
-               .unwrap(),
-         };
-         Processed::Item {
-            content,
-            date,
-            data,
-         }
-      };
-
-      let Processed::Item { content, .. } = rendered else {
-         panic!("prepared.render did not produce Processed::Item");
-      };
+      let item = item(&source, &cascade());
+      let archive = Archive::new(Vec::new()).unwrap();
+      let config = config();
+      let info = render_info(&config, &archive);
 
       assert_eq!(
-         content.as_ref(),
+         item.render(&Environment::new(), &info).unwrap(),
          "Hello, Standalone from content/standalone.lx!"
       );
    }
@@ -1003,11 +928,12 @@ mod tests {
          "content/local.md",
          "---\ntitle: Local\ndate: 2025-06-23 18:55\n---\nbody",
       );
-      let prepared = prepared_page(&source, &cascade());
+      let item = item(&source, &cascade());
 
-      assert_eq!(
-         prepared.date.unwrap().to_rfc3339(),
-         "2025-06-23T18:55:00-06:00"
-      );
+      let ItemContent::Post(post) = &item.content else {
+         panic!("expected a post, got a page or raw content");
+      };
+
+      assert_eq!(post.date.to_rfc3339(), "2025-06-23T18:55:00-06:00");
    }
 }
