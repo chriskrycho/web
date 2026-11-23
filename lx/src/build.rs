@@ -103,14 +103,14 @@ pub fn build(
       .map(|(prepared, source)| {
          // TODO: once the taxonomies exist, pass them here.
          prepared
-            .render(&mut highlighter.fork(), |text, metadata| {
+            .process(&mut highlighter.fork(), |text, metadata| {
                // TODO: smarten the typography!
                let after_jinja = jinja_env
                   .render_str(text, metadata)
                   .map_err(|source| Error::rewrite(source, text))?;
                Ok(after_jinja)
             })
-            .and_then(|rendered| Item::from_rendered(rendered, source, &content_dir))
+            .and_then(|processed| Item::from_processed(processed, source, &content_dir))
             .map_err(|e| (source.path.clone(), e))
       })
       .partition_map(Either::from);

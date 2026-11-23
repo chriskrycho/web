@@ -10,7 +10,6 @@ use crate::{
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use json_feed::Author;
-use log::{debug, trace};
 use lx_md::{self, RenderError, ToRender};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
@@ -148,18 +147,43 @@ impl<'e> Prepared<'e> {
 }
 
 impl<'e> Prepared<'e> {
-   pub fn render(
+   pub fn process(
       self,
       highlighter: &mut Highlighter,
       postprocess: impl Fn(
          &str,
          &Metadata,
       ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
-   ) -> Result<Rendered, Error> {
+   ) -> Result<Processed, Error> {
       match self {
-         Prepared::Page(prepared_page) => prepared_page.render(highlighter, postprocess),
-         Prepared::Raw(source) => Ok(Rendered::Raw {
-            content: Content::FromRaw(source.contents.to_string()),
+         Prepared::Page(page) => {
+            let PreparedPage { data, date, body } = *page;
+
+            let content = match body {
+               Body::Markdown(to_render) => {
+                  lx_md::emit(to_render, Some(highlighter), |text| {
+                     postprocess(text, &data)
+                  })
+                  .map(Content::FromMd)?
+               }
+
+               Body::Template(template) => postprocess(template, &data)
+                  .map_err(|source| Error::Postprocess {
+                     source,
+                     original: template.to_string(),
+                  })
+                  .map(Content::FromTemplate)?,
+            };
+
+            Ok(Processed::Item {
+               content,
+               date,
+               data,
+            })
+         }
+
+         Prepared::Raw(source) => Ok(Processed::Raw {
+            content: source.contents.to_string(),
          }),
       }
    }
@@ -175,47 +199,14 @@ pub struct PreparedPage<'e> {
    body: Body<'e>,
 }
 
-impl PreparedPage<'_> {
-   fn render(
-      self,
-      highlighter: &mut Highlighter,
-      postprocess: impl Fn(
-         &str,
-         &Metadata,
-      ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
-   ) -> Result<Rendered, Error> {
-      let PreparedPage { data, date, body } = self;
-
-      let content = match body {
-         Body::Markdown(to_render) => lx_md::emit(to_render, Some(highlighter), |text| {
-            postprocess(text, &data)
-         })
-         .map(Content::FromMd)?,
-
-         Body::Template(template) => postprocess(template, &data)
-            .map_err(|source| Error::Postprocess {
-               source,
-               original: template.to_string(),
-            })
-            .map(Content::FromTemplate)?,
-      };
-
-      Ok(Rendered::Page {
-         content,
-         date,
-         data,
-      })
-   }
-}
-
-pub enum Rendered {
-   Page {
+pub enum Processed {
+   Item {
       content: Content,
       date: Option<Date>,
       data: Metadata,
    },
    Raw {
-      content: Content,
+      content: String,
    },
 }
 
@@ -223,14 +214,13 @@ pub enum Rendered {
 pub enum Content {
    FromMd(lx_md::Rendered),
    FromTemplate(String),
-   FromRaw(String),
 }
 
 impl AsRef<str> for Content {
    fn as_ref(&self) -> &str {
       match self {
          Content::FromMd(rendered_md) => rendered_md.html(),
-         Content::FromTemplate(body) | Content::FromRaw(body) => body,
+         Content::FromTemplate(body) => body,
       }
    }
 }
@@ -302,7 +292,7 @@ pub struct Item<'s> {
 pub enum ItemContent {
    Page(Page),
    Post(Post),
-   Raw(Content),
+   Raw(String),
 }
 
 /// A fully resolved representation of a page.
@@ -330,8 +320,8 @@ pub struct Post {
 }
 
 impl<'s> Item<'s> {
-   pub fn from_rendered(
-      rendered: Rendered,
+   pub fn from_processed(
+      rendered: Processed,
       source: &'s Source,
       in_dir: &Utf8Path,
    ) -> Result<Self, Error> {
@@ -341,11 +331,10 @@ impl<'s> Item<'s> {
       ));
 
       let (item_content, path) = match rendered {
-         Rendered::Page {
+         Processed::Item {
             content,
             date,
             data,
-            ..
          } => {
             let path = RootedPath::new(&data.slug, in_dir)?;
             let page = Page {
@@ -361,7 +350,7 @@ impl<'s> Item<'s> {
 
             (item_content, path)
          }
-         Rendered::Raw { content } => {
+         Processed::Raw { content } => {
             let slug = Slug::from_path(&source.path)?;
             let path = RootedPath::new(&slug, in_dir)?;
             let item_content = ItemContent::Raw(content);
@@ -377,28 +366,20 @@ impl<'s> Item<'s> {
    }
 
    pub fn render(&self, env: &Environment, info: &RenderInfo) -> Result<String, Error> {
-      match self.layout() {
-         Some(layout) => Context::new(self, info)
-            .render(env, layout)
-            .map_err(|source| Error::RenderTemplate {
-               path: self.path().as_ref().to_owned(),
-               source,
-            }),
-
-         None => Ok(self.content().as_ref().into()),
-      }
-   }
-
-   pub fn content(&self) -> &Content {
       match &self.content {
-         ItemContent::Page(page) => &page.content,
-         ItemContent::Post(post) => &post.page.content,
-         ItemContent::Raw(body) => &body,
-      }
-   }
+         ItemContent::Page(page) | ItemContent::Post(Post { page, .. }) => {
+            match &page.data.layout {
+               Some(layout) => Context::new(self, info).render(env, &layout),
+               None => Context::new(self, info).render_free(env, &page.content),
+            }
+            .map_err(|source| Error::RenderTemplate {
+               path: self.path.as_ref().to_owned(),
+               source,
+            })
+         }
 
-   pub fn layout(&self) -> Option<&str> {
-      self.data()?.layout.as_deref()
+         ItemContent::Raw(body) => Ok(body.clone()),
+      }
    }
 
    pub fn path(&self) -> &RootedPath {
@@ -500,9 +481,21 @@ impl<'a, 's> Context<'a, 's> {
 
    fn render(&self, env: &Environment, layout: &str) -> Result<String, templates::Error> {
       match self {
-         Context::Page(context) => templates::render(env, layout, context),
-         Context::Post(context) => templates::render(env, layout, context),
-         Context::Raw(context) => templates::render(env, layout, context),
+         Context::Page(ctx) => templates::render(env, layout, ctx),
+         Context::Post(ctx) => templates::render(env, layout, ctx),
+         Context::Raw(ctx) => templates::render(env, layout, ctx),
+      }
+   }
+
+   fn render_free(
+      &self,
+      env: &Environment<'_>,
+      content: &Content,
+   ) -> Result<String, templates::Error> {
+      match self {
+         Context::Page(ctx) => templates::render_free(content, env, ctx),
+         Context::Post(ctx) => templates::render_free(content, env, ctx),
+         Context::Raw(ctx) => templates::render_free(content, env, ctx),
       }
    }
 }
@@ -716,10 +709,34 @@ mod tests {
 
    fn item<'e>(source: &'e Source, cascade: &Cascade) -> Item<'e> {
       let prepared = prepared_page(source, cascade);
-      let rendered = prepared
-         .render(&mut Highlighter::new(), |text, _| Ok(text.to_owned()))
-         .unwrap();
-      Item::from_rendered(rendered, source, Utf8Path::new("content")).unwrap()
+      let rendered = {
+         let highlighter: &mut Highlighter = &mut Highlighter::new();
+         let postprocess = |text: &str, _| Ok(text.to_owned());
+         let PreparedPage { data, date, body } = prepared;
+         let content = match body {
+            Body::Markdown(to_render) => {
+               lx_md::emit(to_render, Some(highlighter), |text| {
+                  postprocess(text, &data)
+               })
+               .map(Content::FromMd)
+               .unwrap()
+            }
+
+            Body::Template(template) => postprocess(template, &data)
+               .map_err(|source| Error::Postprocess {
+                  source,
+                  original: template.to_string(),
+               })
+               .map(Content::FromTemplate)
+               .unwrap(),
+         };
+         Processed::Item {
+            content,
+            date,
+            data,
+         }
+      };
+      Item::from_processed(rendered, source, Utf8Path::new("content")).unwrap()
    }
 
    fn post(name: &str, date: &str) -> Source {
@@ -900,8 +917,9 @@ mod tests {
       );
       let prepared = prepared_page(&source, &cascade());
 
-      let rendered = prepared
-         .render(&mut Highlighter::new(), |text, _| {
+      let rendered = {
+         let highlighter: &mut Highlighter = &mut Highlighter::new();
+         let postprocess = |text: &str, _| {
             let env = Environment::new();
             env.render_str(
                text,
@@ -913,11 +931,34 @@ mod tests {
                },
             )
             .map_err(|err| Box::new(err) as Box<dyn std::error::Error + Send + Sync>)
-         })
-         .unwrap();
+         };
+         let PreparedPage { data, date, body } = prepared;
+         let content = match body {
+            Body::Markdown(to_render) => {
+               lx_md::emit(to_render, Some(highlighter), |text| {
+                  postprocess(text, &data)
+               })
+               .map(Content::FromMd)
+               .unwrap()
+            }
 
-      let Rendered::Page { content, .. } = rendered else {
-         panic!("prepared.render did not produce Rendered::Page");
+            Body::Template(template) => postprocess(template, &data)
+               .map_err(|source| Error::Postprocess {
+                  source,
+                  original: template.to_string(),
+               })
+               .map(Content::FromTemplate)
+               .unwrap(),
+         };
+         Processed::Item {
+            content,
+            date,
+            data,
+         }
+      };
+
+      let Processed::Item { content, .. } = rendered else {
+         panic!("prepared.render did not produce Processed::Item");
       };
 
       assert_eq!(

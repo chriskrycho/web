@@ -10,16 +10,15 @@
 use std::{fmt, ops::Deref, sync::Arc};
 
 use jiff::{
-   civil,
+   ZonedDateTime, civil,
    fmt::temporal::{DateTimeParser, DateTimePrinter},
    tz::TimeZone,
-   ZonedDateTime,
 };
 use minijinja::{
-   value::{Object, ObjectRepr},
    State, Value,
+   value::{Object, ObjectRepr},
 };
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 const PARSER: DateTimeParser = DateTimeParser::new();
 const PRINTER: DateTimePrinter = DateTimePrinter::new();
@@ -148,7 +147,7 @@ pub fn parse(source: &str, time_zone: &TimeZone) -> Result<Date, jiff::Error> {
 
 #[cfg(test)]
 mod tests {
-   use minijinja::{context, Environment};
+   use minijinja::{Environment, context};
 
    use super::*;
 

@@ -21,6 +21,9 @@ pub enum Error {
       layout: String,
    },
 
+   #[error("could not render standalone (no-`layout`) template")]
+   RenderFree { source: minijinja::Error },
+
    #[error("could not add template for {path}")]
    CouldNotAddTemplate {
       source: minijinja::Error,
@@ -80,4 +83,13 @@ pub fn render(
          source,
          layout: layout.to_string(),
       })
+}
+
+pub fn render_free(
+   src: impl AsRef<str>,
+   env: &Environment,
+   ctx: impl Serialize,
+) -> Result<String, Error> {
+   env.render_str(src.as_ref(), ctx)
+      .map_err(|source| Error::RenderFree { source })
 }
