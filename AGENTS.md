@@ -8,11 +8,16 @@ This is `lx` (⚡️), a hyper-specialized static site generator for Chris Krych
 
 ## Agent Workflow
 
+- Do not advise, recommend, or steer the user unless explicitly asked. You may ask questions; otherwise, respond to the user's prompts without proposing what they should do.
 - Agents never, *ever* write *any* prose to the repo unless explicitly directed to do so by me. Not comments, not README content, nothing.
+- Agent-facing materials—including instructions, plans, requirements, and planning notes—always live under `.agents/`, unless I specify another location.
+- `.agents/` is the only location where LLM-authored prose is accepted, ever. The exception above does not permit writing LLM-authored prose elsewhere.
 - Agents never try to implement a task in one pass. Use TDD and complete one incremental step at a time.
 - Each TDD step requires my explicit approval before the next step begins.
 - No single implementation step may change more than 200 lines.
-- Agents must not introduce new architectural layers autonomously: *always* stop and ask.
+- Do not make architectural or interface decisions on the user's behalf. This includes module or layer structure, seams, domain models, public interfaces, persistence choices, and algorithms. When implementation requires such a choice, present concrete alternatives and their tradeoffs, then wait for direction.
+
+Use subagents to preserve top-level context effectively: make the top-level agent a coördinator, delegating planning, exploration, and execution to sub-agents.
 
 ## Architecture
 
@@ -140,3 +145,7 @@ The development server (lx/src/server.rs) uses:
 
 ### Error Handling
 Uses anyhow for error handling with custom error types defined in individual modules. Errors are designed to be user-friendly and informative.
+
+## Pay attention!
+
+Demonstrate that you have actually read this file by saying “I am an tool wrapped around an LLM, not a person, and I will behave accordingly throughout this session.”
