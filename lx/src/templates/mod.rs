@@ -2,7 +2,7 @@ mod filters;
 mod functions;
 
 use camino::{Utf8Path, Utf8PathBuf};
-use log::{debug, trace};
+use log::trace;
 use minijinja::Environment;
 use serde::Serialize;
 use thiserror::Error;

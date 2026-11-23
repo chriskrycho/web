@@ -10,6 +10,7 @@ use crate::{
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
 use json_feed::Author;
+use log::{debug, trace};
 use lx_md::{self, RenderError, ToRender};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
@@ -61,7 +62,6 @@ fn prepare_markdown<'e>(
    Ok(PreparedPage {
       data,
       date,
-      kind: Kind::Markdown,
       body: Body::Markdown(to_render),
    })
 }
@@ -84,7 +84,6 @@ fn prepare_template<'e>(
    Ok(PreparedPage {
       data,
       date,
-      kind: Kind::Templated,
       body: Body::Template(front_matter.body),
    })
 }
@@ -148,6 +147,24 @@ impl<'e> Prepared<'e> {
    }
 }
 
+impl<'e> Prepared<'e> {
+   pub fn render(
+      self,
+      highlighter: &mut Highlighter,
+      postprocess: impl Fn(
+         &str,
+         &Metadata,
+      ) -> Result<String, Box<dyn std::error::Error + Send + Sync>>,
+   ) -> Result<Rendered, Error> {
+      match self {
+         Prepared::Page(prepared_page) => prepared_page.render(highlighter, postprocess),
+         Prepared::Raw(source) => Ok(Rendered::Raw {
+            content: Content::FromRaw(source.contents.to_string()),
+         }),
+      }
+   }
+}
+
 pub struct PreparedPage<'e> {
    /// The fully-parsed metadata associated with the item.
    data: Metadata,
@@ -159,7 +176,7 @@ pub struct PreparedPage<'e> {
 }
 
 impl PreparedPage<'_> {
-   pub fn render(
+   fn render(
       self,
       highlighter: &mut Highlighter,
       postprocess: impl Fn(
@@ -183,7 +200,7 @@ impl PreparedPage<'_> {
             .map(Content::FromTemplate)?,
       };
 
-      Ok(Rendered {
+      Ok(Rendered::Page {
          content,
          date,
          data,
@@ -191,23 +208,29 @@ impl PreparedPage<'_> {
    }
 }
 
-pub struct Rendered {
-   content: Content,
-   date: Option<Date>,
-   data: Metadata,
+pub enum Rendered {
+   Page {
+      content: Content,
+      date: Option<Date>,
+      data: Metadata,
+   },
+   Raw {
+      content: Content,
+   },
 }
 
 #[derive(Debug)]
 pub enum Content {
    FromMd(lx_md::Rendered),
    FromTemplate(String),
+   FromRaw(String),
 }
 
-impl Content {
-   pub fn html(&self) -> &str {
+impl AsRef<str> for Content {
+   fn as_ref(&self) -> &str {
       match self {
-         Content::FromMd(rendered) => rendered.html(),
-         Content::FromTemplate(body) => body,
+         Content::FromMd(rendered_md) => rendered_md.html(),
+         Content::FromTemplate(body) | Content::FromRaw(body) => body,
       }
    }
 }
@@ -217,7 +240,7 @@ impl serde::Serialize for Content {
    where
       S: serde::Serializer,
    {
-      serializer.serialize_str(self.html())
+      serializer.serialize_str(self.as_ref())
    }
 }
 
@@ -270,6 +293,18 @@ impl fmt::Display for Id {
    }
 }
 
+pub struct Item<'s> {
+   source: &'s Source,
+   path: RootedPath,
+   pub content: ItemContent,
+}
+
+pub enum ItemContent {
+   Page(Page),
+   Post(Post),
+   Raw(Content),
+}
+
 /// A fully resolved representation of a page.
 ///
 /// In this struct, the metadata has been parsed and resolved, and the content has been
@@ -277,7 +312,7 @@ impl fmt::Display for Id {
 /// my typography tooling. It is ready to render into the target layout template specified
 /// by its [`Metadata`] and then to print to the file system.
 #[derive(Debug, Serialize)]
-pub struct Page<'s> {
+pub struct Page {
    pub id: Id,
 
    /// The fully parsed metadata associated with the page.
@@ -285,15 +320,13 @@ pub struct Page<'s> {
 
    /// The fully rendered contents of the page.
    pub content: Content,
-
-   pub source: &'s Source,
-
-   pub path: RootedPath,
 }
 
-pub enum Item<'s> {
-   Page(Page<'s>),
-   Post(Post<'s>),
+/// A `Post` is simply a [`Page`] that has a date.
+#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
+pub struct Post {
+   pub page: Page,
+   pub date: Date,
 }
 
 impl<'s> Item<'s> {
@@ -307,98 +340,169 @@ impl<'s> Item<'s> {
          source.path.as_os_str().as_bytes(),
       ));
 
-      let path = RootedPath::new(&rendered.data.slug, in_dir)?;
-      let page = Page {
-         id,
-         content: rendered.content,
-         data: rendered.data,
+      let (item_content, path) = match rendered {
+         Rendered::Page {
+            content,
+            date,
+            data,
+            ..
+         } => {
+            let path = RootedPath::new(&data.slug, in_dir)?;
+            let page = Page {
+               id,
+               content: content,
+               data: data,
+            };
+
+            let item_content = match date {
+               Some(date) => ItemContent::Post(Post { date, page }),
+               None => ItemContent::Page(page),
+            };
+
+            (item_content, path)
+         }
+         Rendered::Raw { content } => {
+            let slug = Slug::from_path(&source.path)?;
+            let path = RootedPath::new(&slug, in_dir)?;
+            let item_content = ItemContent::Raw(content);
+            (item_content, path)
+         }
+      };
+
+      Ok(Item {
          source,
          path,
-      };
-
-      let item = match rendered.date {
-         Some(date) => Item::Post(Post { date, page }),
-         None => Item::Page(page),
-      };
-
-      Ok(item)
+         content: item_content,
+      })
    }
 
    pub fn render(&self, env: &Environment, info: &RenderInfo) -> Result<String, Error> {
       match self.layout() {
-         Some(layout) => templates::render(env, layout, Context::new(info, self))
+         Some(layout) => Context::new(self, info)
+            .render(env, layout)
             .map_err(|source| Error::RenderTemplate {
                path: self.path().as_ref().to_owned(),
                source,
             }),
-         None => Ok(self.content().html().into()),
+
+         None => Ok(self.content().as_ref().into()),
       }
    }
 
    pub fn content(&self) -> &Content {
-      match self {
-         Item::Page(page) => &page.content,
-         Item::Post(post) => &post.page.content,
+      match &self.content {
+         ItemContent::Page(page) => &page.content,
+         ItemContent::Post(post) => &post.page.content,
+         ItemContent::Raw(body) => &body,
       }
    }
 
    pub fn layout(&self) -> Option<&str> {
-      self.data().layout.as_deref()
+      self.data()?.layout.as_deref()
    }
 
    pub fn path(&self) -> &RootedPath {
-      match self {
-         Item::Page(page) => &page.path,
-         Item::Post(post) => &post.page.path,
-      }
+      &self.path
    }
 
    pub fn source(&self) -> &Source {
-      match self {
-         Item::Page(page) => page.source,
-         Item::Post(post) => post.page.source,
-      }
+      &self.source
    }
 
    pub fn title(&self) -> Option<&str> {
-      self.data().title.as_deref()
+      self.data()?.title.as_deref()
    }
 
-   pub fn data(&self) -> &Metadata {
-      match self {
-         Item::Page(page) => &page.data,
-         Item::Post(post) => &post.page.data,
+   pub fn data(&self) -> Option<&Metadata> {
+      match &self.content {
+         ItemContent::Page(page) => Some(&page.data),
+         ItemContent::Post(post) => Some(&post.page.data),
+         ItemContent::Raw(_) => None,
       }
    }
 }
 
 pub struct RenderInfo<'a> {
    pub config: &'a Config,
-   pub build_date: String,
+   pub built_at: String,
    pub archive: &'a Archive<'a>,
 }
 
-#[derive(Serialize)]
-struct Context<'i, 'a> {
-   content: &'i str,
-   data: &'i Metadata,
-   path: &'i RootedPath,
-   source: &'i Source,
-   config: &'i Config,
-   build_date: &'i str,
-   archive: &'i Archive<'a>,
+enum Context<'a, 's> {
+   Page(PageContext<'a, 's>),
+   Post(PostContext<'a, 's>),
+   Raw(RawContext<'s>),
 }
 
-impl<'i, 'a> Context<'i, 'a> {
-   fn new(render_info: &'i RenderInfo<'a>, item: &'i Item) -> Context<'i, 'a> {
-      Context {
-         content: item.content().html(),
-         data: item.data(),
-         path: item.path(),
-         source: item.source(),
-         config: render_info.config,
-         build_date: &render_info.build_date,
-         archive: render_info.archive,
+#[derive(Debug, Serialize)]
+struct PageContext<'a, 's> {
+   content: &'s str,
+   data: &'s Metadata,
+   path: &'s RootedPath,
+   source: &'s Source,
+   config: &'s Config,
+   build_date: &'s str,
+   archive: &'s Archive<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct PostContext<'a, 's> {
+   content: &'s str,
+   date: &'s Date,
+   data: &'s Metadata,
+   path: &'s RootedPath,
+   source: &'s Source,
+   config: &'s Config,
+   build_date: &'s str,
+   archive: &'s Archive<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct RawContext<'s> {
+   content: &'s str,
+   path: &'s RootedPath,
+   source: &'s Source,
+   config: &'s Config,
+   build_date: &'s str,
+}
+
+impl<'a, 's> Context<'a, 's> {
+   fn new(item: &'s Item<'s>, render_info: &'s RenderInfo<'a>) -> Context<'a, 's> {
+      match &item.content {
+         ItemContent::Page(page) => Context::Page(PageContext {
+            content: page.content.as_ref(),
+            data: &page.data,
+            path: item.path(),
+            source: item.source(),
+            config: render_info.config,
+            build_date: &render_info.built_at,
+            archive: render_info.archive,
+         }),
+         ItemContent::Post(post) => Context::Post(PostContext {
+            content: post.page.content.as_ref(),
+            date: &post.date,
+            data: &post.page.data,
+            path: item.path(),
+            source: item.source(),
+            config: render_info.config,
+            build_date: &render_info.built_at,
+            archive: render_info.archive,
+         }),
+         ItemContent::Raw(content) => Context::Raw(RawContext {
+            content: content.as_ref(),
+            path: item.path(),
+            source: item.source(),
+            config: render_info.config,
+            build_date: &render_info.built_at,
+         }),
+      }
+   }
+
+   fn render(&self, env: &Environment, layout: &str) -> Result<String, templates::Error> {
+      match self {
+         Context::Page(context) => templates::render(env, layout, context),
+         Context::Post(context) => templates::render(env, layout, context),
+         Context::Raw(context) => templates::render(env, layout, context),
       }
    }
 }
@@ -407,47 +511,40 @@ impl<'i, 'a> Context<'i, 'a> {
 //   implementation *does* handle this because it creates a v5 UUID from the path to the
 //   file, which by definition must be unique (you cannot have two files with the same
 //   path in any file system I know of!), but this only holds as long as that does.
-impl PartialEq for Page<'_> {
+impl PartialEq for Page {
    fn eq(&self, other: &Self) -> bool {
       self.id == other.id
    }
 }
 
-impl Eq for Page<'_> {}
+impl Eq for Page {}
 
-impl Hash for Page<'_> {
+impl Hash for Page {
    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
       self.id.hash(state);
    }
 }
 
-/// A `Post` is simply a [`Page`] that has a date.
-#[derive(Debug, PartialEq, Eq, Hash, Serialize)]
-pub struct Post<'e> {
-   pub page: Page<'e>,
-   pub date: Date,
-}
-
-impl<'e> PartialOrd for Post<'e> {
+impl PartialOrd for Post {
    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
       Some(self.cmp(other))
    }
 }
 
-impl Ord for Post<'_> {
+impl Ord for Post {
    fn cmp(&self, other: &Self) -> Ordering {
       self.date.cmp(&other.date)
    }
 }
 
 #[derive(Debug, Serialize, Hash, PartialEq, Eq)]
-pub struct PostLink<'e> {
+pub struct PostLink<'a> {
    anchor_title: String,
-   slug: &'e Slug,
+   slug: &'a Slug,
 }
 
-impl<'e> From<&'e Post<'e>> for PostLink<'e> {
-   fn from(value: &'e Post<'e>) -> Self {
+impl<'a> From<&'a Post> for PostLink<'a> {
+   fn from(value: &'a Post) -> PostLink<'a> {
       PostLink {
          anchor_title: match &value.page.data.link {
             Some(url) => format!("link to {url}"),
@@ -541,19 +638,22 @@ impl AsRef<Utf8Path> for RootedPath {
 }
 
 /// Convenience to allow `From` for `FeedItem`.
-pub struct PostAndConfig<'p, 'c, 'e>(pub &'p Post<'e>, pub &'c Config);
+pub struct PostAndConfig<'p, 'c>(pub &'p Post, pub PostInfo<'p>, pub &'c Config);
 
-// TODO: This will need to take `From` a different type, one that wraps `Post`
-// and probably also `Config` (e.g. to build the full URL).
-impl From<PostAndConfig<'_, '_, '_>> for json_feed::FeedItem {
-   fn from(PostAndConfig(post, config): PostAndConfig) -> Self {
+pub struct PostInfo<'a> {
+   pub source: &'a Source,
+   pub path: &'a RootedPath,
+}
+
+impl From<PostAndConfig<'_, '_>> for json_feed::FeedItem {
+   fn from(PostAndConfig(post, info, config): PostAndConfig) -> Self {
       json_feed::FeedItem {
          id: post.page.id.to_string(),
-         url: Some(post.page.path.url(config)),
+         url: Some(info.path.url(config)),
          external_url: None, // TODO: support for page.link etc.
          title: post.page.data.title.clone(),
          content_text: None, // TODO: use this for microblogging?
-         content_html: Some(post.page.content.html().to_string()),
+         content_html: Some(post.page.content.as_ref().to_string()),
          summary: post
             .page
             .data
@@ -749,6 +849,10 @@ mod tests {
 
    #[test]
    fn renders_layouts_with_build_context() {
+      let sources = vec![
+         post("a", "2022-01-01T00:00:00-05:00"),
+         post("b", "2023-01-01T00:00:00-05:00"),
+      ];
       let mut cascade = cascade();
       cascade.add_at(
          "content",
@@ -757,16 +861,21 @@ mod tests {
             ..Default::default()
          },
       );
-      let sources = vec![
-         post("a", "2022-01-01T00:00:00-05:00"),
-         post("b", "2023-01-01T00:00:00-05:00"),
-      ];
+
       let items: Vec<_> = sources.iter().map(|s| item(s, &cascade)).collect();
-      let archive = crate::archive::Archive::new(&items).unwrap();
+      let posts: Vec<_> = items
+         .iter()
+         .filter_map(|item| match &item.content {
+            ItemContent::Post(post) => Some(post),
+            ItemContent::Page(_) | ItemContent::Raw(_) => None,
+         })
+         .collect();
+
+      let archive = crate::archive::Archive::new(posts).unwrap();
       let config = config();
       let info = RenderInfo {
          config: &config,
-         build_date: "2024-01-01T00:00:00+00:00".into(),
+         built_at: "2024-01-01T00:00:00+00:00".into(),
          archive: &archive,
       };
 
@@ -807,8 +916,12 @@ mod tests {
          })
          .unwrap();
 
+      let Rendered::Page { content, .. } = rendered else {
+         panic!("prepared.render did not produce Rendered::Page");
+      };
+
       assert_eq!(
-         rendered.content.html(),
+         content.as_ref(),
          "Hello, Standalone from content/standalone.lx!"
       );
    }

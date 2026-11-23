@@ -2,7 +2,7 @@ use std::{error, fmt, fs, io};
 
 use arborium::Highlighter;
 use camino::{Utf8Path, Utf8PathBuf};
-use jiff::{Timestamp, fmt::temporal::DateTimePrinter, tz::Offset};
+use jiff::{Timestamp, fmt::temporal::DateTimePrinter};
 use lazy_static::lazy_static;
 use log::{debug, trace};
 use rayon::{iter::Either, prelude::*};
@@ -81,18 +81,9 @@ pub fn build(
 
    let (errors, prepared_pages): (Vec<_>, Vec<_>) = sources
       .par_iter()
-      // NOTE: this is where I will want to add handling for `<page>.lx.yaml` files; when
-      // I add support for that, this will not be a filter but will do different things in
-      // the map call depending on what kind of file it is.
-      .filter(|source| source.kind == Kind::Markdown)
       .map(|source| {
          page::prepare(source, &cascade, config)
-            .map(|prepared| match prepared {
-               page::Prepared::Page(prepared) => (prepared, source),
-               page::Prepared::Raw(_) => {
-                  unreachable!("build only prepares Markdown sources")
-               }
-            })
+            .map(|prepared| (prepared, source))
             .map_err(|e| (source.path.clone(), e))
       })
       .partition_map(Either::from);
@@ -131,10 +122,14 @@ pub fn build(
    // TODO: build taxonomies.
    // TODO: Identify the taxonomical system I want to use for the site(s)!
    let built_at = Timestamp::now();
-   let archive = Archive::new(&items).map_err(Error::from)?;
+   let posts = items.iter().filter_map(|item| match &item.content {
+      page::ItemContent::Post(post) => Some(post),
+      page::ItemContent::Page(_) | page::ItemContent::Raw(_) => None,
+   });
+   let archive = Archive::new(posts).map_err(Error::from)?;
    let render_info = RenderInfo {
       config,
-         .timestamp_with_offset_to_string(&Timestamp::now(), Offset::UTC),
+      built_at: DateTimePrinter::new().timestamp_to_string(&built_at),
       archive: &archive,
    };
 

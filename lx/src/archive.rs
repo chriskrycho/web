@@ -2,24 +2,17 @@ use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::page::{Item, PostLink};
+use crate::page::{Post, PostLink};
 
 /// A data structure that maps each post to Y -> M -> D -> posts, preserving the order of
 /// the posts.
 #[derive(Debug, Serialize)]
 pub struct Archive<'p>(IndexMap<Year, MonthMap<'p>>);
 
-impl<'e> Archive<'e> {
+impl<'a> Archive<'a> {
    /// Reference all pages in an unordered fashion.
-   pub fn new(
-      items: impl IntoIterator<Item = &'e Item<'e>>,
-   ) -> Result<Archive<'e>, Error> {
-      let mut year_map = IndexMap::<Year, MonthMap<'e>>::new();
-
-      let posts = items.into_iter().filter_map(|item| match item {
-         Item::Page(_) => None,
-         Item::Post(post) => Some(post),
-      });
+   pub fn new(posts: impl IntoIterator<Item = &'a Post>) -> Result<Archive<'a>, Error> {
+      let mut year_map = IndexMap::<Year, MonthMap<'a>>::new();
 
       for post in posts {
          // Archive years are positive CE year numbers: ISO year 0 (1 BCE) is archived

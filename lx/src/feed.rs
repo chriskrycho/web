@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use json_feed::{AuthorOptions, JSONFeed};
 use thiserror::Error;
 
-use crate::page::Post;
+use crate::page::{Post, PostInfo};
 use crate::{data::config::Config, page::PostAndConfig};
 
 /// Required resources for a `Feed`.
@@ -20,11 +20,20 @@ pub struct Feed<'a> {
    /// The set of items to render in the feed. A read-only slice because I will
    /// never actually need to *write* to these. I just need the parsed metadata
    /// and rendered HTML contents of the page, to render into the template.
-   items: &'a [Post<'a>],
+   items: &'a [FeedPost<'a>],
+}
+
+struct FeedPost<'a> {
+   post: &'a Post,
+   info: PostInfo<'a>,
 }
 
 impl<'a> Feed<'a> {
-   pub fn _new(title: String, site_config: &'a Config, items: &'a [Post]) -> Feed<'a> {
+   pub fn _new(
+      title: String,
+      site_config: &'a Config,
+      items: &'a [FeedPost<'a>],
+   ) -> Feed<'a> {
       Feed {
          title,
          site_config,
@@ -48,7 +57,16 @@ impl<'a> TryFrom<Feed<'a>> for JSONFeed {
       let items = feed
          .items
          .iter()
-         .map(|page| json_feed::FeedItem::from(PostAndConfig(page, feed.site_config)))
+         .map(|post| {
+            json_feed::FeedItem::from(PostAndConfig(
+               post.post,
+               PostInfo {
+                  source: post.info.source,
+                  path: post.info.path,
+               },
+               feed.site_config,
+            ))
+         })
          .collect();
 
       // TODO: needs the info for the *feed* URL.

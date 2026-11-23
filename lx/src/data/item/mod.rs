@@ -12,7 +12,7 @@ use super::{config::Config, image::Image};
 use crate::{
    archive::Archive,
    datetime::{self, Date},
-   page::{self, Item},
+   page::{self, Item, ItemContent},
 };
 
 use self::cascade::Cascade;
@@ -220,6 +220,12 @@ impl Slug {
          }
       }
    }
+
+   /// Construct a slug where there is no associated metadata and therefore no need to
+   /// bother worrying about passing in a metadata-derived permalink string.
+   pub fn from_path(source: &Utf8Path) -> Result<Slug, Error> {
+      Slug::new(None, source)
+   }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -263,11 +269,19 @@ impl Book {
       &'a self,
       items: I,
    ) -> Result<BookView<'a>, Box<dyn std::error::Error>> {
-      let archive = Archive::new(
-         items
-            .into_iter()
-            .filter(|item| item.data().book.as_ref().is_some_and(|book| book == self)),
-      )?;
+      let posts = items.into_iter().filter_map(|item| match &item.content {
+         ItemContent::Post(post) => Some(post),
+         _ => None,
+      });
+      let matching_posts = posts.filter(|post| {
+         post
+            .page
+            .data
+            .book
+            .as_ref()
+            .is_some_and(|book| book == self)
+      });
+      let archive = Archive::new(matching_posts)?;
 
       Ok(BookView {
          book: self,
