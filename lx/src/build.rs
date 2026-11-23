@@ -130,10 +130,10 @@ pub fn build(
 
    // TODO: build taxonomies.
    // TODO: Identify the taxonomical system I want to use for the site(s)!
+   let built_at = Timestamp::now();
    let archive = Archive::new(&items).map_err(Error::from)?;
    let render_info = RenderInfo {
       config,
-      build_date: DateTimePrinter::new()
          .timestamp_with_offset_to_string(&Timestamp::now(), Offset::UTC),
       archive: &archive,
    };
