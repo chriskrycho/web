@@ -130,7 +130,7 @@ async fn rebuild(
          // nothing, but in the future I may update it to do more granular rebuilds.)
          Ok(Change { paths }) => RebuiltFor::Paths(paths),
 
-         // If the channel explicit notifies that it lagged, that means some number of
+         // If the channel explicitly notifies that it lagged, that means some number of
          // changes were *missed*, which in turn means the file system saw changes that
          // did not make it here. Go ahead and rebuild, but acknowledging that there is no
          // way to do so granularly.
