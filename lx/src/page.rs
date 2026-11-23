@@ -23,9 +23,9 @@ pub fn prepare<'e>(
    cascade: &Cascade,
    config: &Config,
 ) -> Result<Prepared<'e>, Error> {
-   match source.kind {
+   match &source.kind {
       Kind::Markdown => prepare_markdown(source, cascade, config).map(Prepared::page),
-      Kind::Templated => prepare_template(source, cascade, config).map(Prepared::page),
+      Kind::Templated(_) => prepare_template(source, cascade, config).map(Prepared::page),
       Kind::Raw => Ok(Prepared::Raw(source)),
    }
 }
@@ -245,20 +245,17 @@ pub struct Source {
    pub kind: Kind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
    Markdown,
-   Templated,
+   Templated(Utf8PathBuf),
    Raw,
 }
 
-impl<P> From<P> for Kind
-where
-   P: AsRef<Utf8Path>,
-{
-   fn from(value: P) -> Self {
-      let extensions: Vec<&str> = value
-         .as_ref()
+impl Kind {
+   pub fn from_path<P: AsRef<Utf8Path>>(path: P) -> Self {
+      let path = path.as_ref();
+      let extensions: Vec<&str> = path
          .file_name()
          .map(|file_name| file_name.split('.').skip(1).collect())
          .unwrap_or_default();
@@ -266,7 +263,17 @@ where
       if extensions.last() == Some(&"md") {
          Kind::Markdown
       } else if extensions.contains(&"lx") {
-         Kind::Templated
+         let stem = Utf8PathBuf::from(path.file_prefix().unwrap_or_default());
+         let extension = Utf8PathBuf::from(
+            extensions
+               .into_iter()
+               .filter(|&ext| ext != "lx")
+               .collect::<Vec<_>>()
+               .join("."),
+         );
+         let file_name = stem.with_added_extension(&extension);
+         let output_path = path.with_file_name(file_name);
+         Kind::Templated(output_path)
       } else {
          Kind::Raw
       }
@@ -324,7 +331,8 @@ impl<'s> Item<'s> {
       rendered: Processed,
       source: &'s Source,
       in_dir: &Utf8Path,
-   ) -> Result<Self, Error> {
+   ) -> Result<Item<'s>, Error> {
+      // TODO: use explicit ID if supplied.
       let id = Id(Uuid::new_v5(
          &Uuid::NAMESPACE_OID,
          source.path.as_os_str().as_bytes(),
@@ -384,6 +392,20 @@ impl<'s> Item<'s> {
 
    pub fn path(&self) -> &RootedPath {
       &self.path
+   }
+
+   /// The path the item writes to, relative to the output root.
+   pub fn output_path(&self) -> Utf8PathBuf {
+      match &self.source.kind {
+         // For Markdown source files, I emit `foo.md` at `foo/index.html` so that the
+         // input is always in predictable nice location that does *not* include `.html`
+         // as its suffix, by dint of how both the dev server and the production servers
+         // I use work.
+         Kind::Markdown => self.path.as_ref().with_extension("").join("index.html"),
+
+         // For everything else, their (slugified) path is already ready to go.
+         Kind::Templated(_) | Kind::Raw => self.path.as_ref().to_owned(),
+      }
    }
 
    pub fn source(&self) -> &Source {
@@ -692,7 +714,7 @@ mod tests {
       Source {
          path: Utf8PathBuf::from(path),
          contents: String::from(contents),
-         kind: Kind::from(path),
+         kind: Kind::from_path(path),
       }
    }
 
@@ -732,6 +754,17 @@ mod tests {
       }
    }
 
+   fn assert_templated(source: &str, output: &str) {
+      assert_eq!(
+         Kind::from_path(source),
+         Kind::Templated(Utf8PathBuf::from(output))
+      );
+   }
+
+   fn output_path(source: &Source, cascade: &Cascade) -> String {
+      item(source, cascade).output_path().to_string()
+   }
+
    fn render_info<'a>(config: &'a Config, archive: &'a Archive<'a>) -> RenderInfo<'a> {
       RenderInfo {
          config,
@@ -742,42 +775,113 @@ mod tests {
 
    #[test]
    fn classifies_markdown_as_primary_content() {
-      assert_eq!(Kind::from("content/index.md"), Kind::Markdown);
-      assert_eq!(Kind::from("content/essays/jj init.md"), Kind::Markdown);
+      assert_eq!(Kind::from_path("content/index.md"), Kind::Markdown);
+      assert_eq!(Kind::from_path("content/essays/jj init.md"), Kind::Markdown);
    }
 
    #[test]
    fn markdown_wins_over_explicit_templating() {
-      assert_eq!(Kind::from("content/foo.lx.md"), Kind::Markdown);
+      assert_eq!(Kind::from_path("content/foo.lx.md"), Kind::Markdown);
    }
 
    #[test]
    fn classifies_terminal_lx_as_templated() {
-      assert_eq!(Kind::from("content/foo.lx"), Kind::Templated);
+      assert_templated("content/standalone.lx", "content/standalone");
    }
 
    #[test]
    fn classifies_lx_in_extension_chain_as_templated() {
-      assert_eq!(Kind::from("content/foo.lx.xml"), Kind::Templated);
-      assert_eq!(
-         Kind::from("content/foo.lx.fancy.extension.chain"),
-         Kind::Templated
+      assert_templated("content/feed.lx.xml", "content/feed.xml");
+      assert_templated("content/foo.bar.lx.xml", "content/foo.bar.xml");
+      assert_templated(
+         "content/foo.lx.fancy.extension.chain",
+         "content/foo.fancy.extension.chain",
       );
-      assert_eq!(Kind::from("content/foo.bar.lx.xml"), Kind::Templated);
    }
 
    #[test]
    fn does_not_mistake_a_named_stem_for_an_lx_extension() {
-      assert_eq!(Kind::from("content/lx.xml"), Kind::Raw);
-      assert_eq!(Kind::from("content/md"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/lx.xml"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/md"), Kind::Raw);
    }
 
    #[test]
    fn classifies_everything_else_as_raw() {
-      assert_eq!(Kind::from("content/foo.xml"), Kind::Raw);
-      assert_eq!(Kind::from("content/foo.html"), Kind::Raw);
-      assert_eq!(Kind::from("content/data.json"), Kind::Raw);
-      assert_eq!(Kind::from("content/extensionless"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/foo.xml"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/foo.html"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/data.json"), Kind::Raw);
+      assert_eq!(Kind::from_path("content/extensionless"), Kind::Raw);
+   }
+
+   #[test]
+   fn removes_every_intermediate_lx() {
+      assert_templated("content/foo.lx.lx.xml", "content/foo.xml");
+      assert_templated("content/nested/thing.lx.json", "content/nested/thing.json");
+   }
+
+   #[test]
+   fn preserves_lx_outside_extension_positions() {
+      assert_templated("content/foo.lxml.lx.xml", "content/foo.lxml.xml");
+      assert_templated("content/a.lx.b/foo.lx.xml", "content/a.lx.b/foo.xml");
+      assert_templated(
+         "content/my-cool-thing.lx.lx.lx.so-lx-tastic.cool",
+         "content/my-cool-thing.so-lx-tastic.cool",
+      );
+   }
+
+   #[test]
+   fn templated_metadata_slugs_from_its_output_path() {
+      let source = source("content/feed.lx.xml", "body");
+      let item = item(&source, &cascade());
+
+      assert_eq!(
+         item.data().unwrap().slug,
+         Slug::FromPath(Utf8PathBuf::from("content/feed.xml"))
+      );
+   }
+
+   #[test]
+   fn permalink_overrides_every_other_slug_source() {
+      let markdown = source(
+         "content/journal/Hello World.md",
+         "---\ntitle: Hello\npermalink: /hello/\n---\nbody",
+      );
+      assert_eq!(item(&markdown, &cascade()).path().as_ref(), "hello");
+
+      let templated = source("content/feed.lx.xml", "---\npermalink: /feed\n---\nbody");
+      assert_eq!(item(&templated, &cascade()).path().as_ref(), "feed");
+   }
+
+   #[test]
+   fn markdown_outputs_index_html_inside_its_directory() {
+      let source = source(
+         "content/journal/Hello World.md",
+         "---\ntitle: Hello\n---\nbody",
+      );
+
+      assert_eq!(
+         output_path(&source, &cascade()),
+         "journal/hello-world/index.html"
+      );
+   }
+
+   #[test]
+   fn templated_outputs_directly_at_its_derived_path() {
+      let feed = source("content/feed.lx.xml", "---\nlayout: feed.jinja\n---\nbody");
+      assert_eq!(output_path(&feed, &cascade()), "feed.xml");
+
+      let standalone = source("content/standalone.lx", "body");
+      assert_eq!(output_path(&standalone, &cascade()), "standalone");
+
+      let nested = source("content/nested/thing.lx.json", "body");
+      assert_eq!(output_path(&nested, &cascade()), "nested/thing.json");
+   }
+
+   #[test]
+   fn raw_outputs_at_its_source_path() {
+      let source = source("content/data.json", "{}");
+
+      assert_eq!(output_path(&source, &cascade()), "data.json");
    }
 
    #[test]

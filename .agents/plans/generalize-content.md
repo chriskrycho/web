@@ -22,10 +22,10 @@ The v6 feed remains green in this slice, but it is intentionally a placeholder f
 - Classify `.md` sources as primary Markdown content with built-in page output semantics.
 - Classify a source with an exact `lx` extension anywhere in its extension chain as explicitly templated arbitrary content.
 - Classify every remaining source as a raw file and copy it verbatim to the same path relative to the output root.
-- Derive a templated output path by removing the discovered `lx` extension and preserving every extension to its right.
+- Derive a templated output path by removing the discovered `lx` extension(s) and preserving every other extension.
 - Support terminal `lx`: `foo.lx` emits `foo`.
 - Support arbitrary extension chains: `foo.lx.fancy.extension.chain` emits `foo.fancy.extension.chain`.
-- Remove only the first `lx` extension found while walking from right to left.
+- Remove every `lx` extension found.
 - Reject templated sources whose output ends in `htm`, case-insensitively. `.html`, not `.htm`, is the supported HTML extension.
 - Sort discovered sources deterministically by source path.
 

@@ -147,8 +147,7 @@ pub fn build(
 
    // TODO: this can and probably should use async?
    for item in &items {
-      let relative_path = item.path().as_ref().join("index.html");
-      let path = config.output.join(relative_path);
+      let path = config.output.join(item.output_path());
 
       trace!(
          "writing page {} to {}",
@@ -261,7 +260,7 @@ where
       let path = path.as_ref();
       match fs::read_to_string(path) {
          Ok(contents) => sources.push(Source {
-            kind: Kind::from(path),
+            kind: Kind::from_path(path),
             path: path.to_owned(),
             contents,
          }),

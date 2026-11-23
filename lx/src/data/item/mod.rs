@@ -12,7 +12,7 @@ use super::{config::Config, image::Image};
 use crate::{
    archive::Archive,
    datetime::{self, Date},
-   page::{self, Item, ItemContent},
+   page::{self, Item, ItemContent, Kind},
 };
 
 use self::cascade::Cascade;
@@ -62,7 +62,11 @@ impl Metadata {
       default_layout: Option<String>,
       config: &Config,
    ) -> Result<(Self, Option<Date>), Error> {
+      // Note: the ordering throughout this method is intentional: it minimizes the
+      // number of moves and copies required!
+
       let date = item.date.map(|raw| parse_date(raw, config)).transpose()?;
+
       let _started = item
          .started
          .map(|raw| parse_date(raw, config))
@@ -88,7 +92,13 @@ impl Metadata {
 
       let metadata = Metadata {
          title,
-         slug: Slug::new(permalink.as_deref(), &source.path)?,
+         slug: {
+            let slug_path = match &source.kind {
+               Kind::Templated(path) => path,
+               Kind::Markdown | Kind::Raw => &source.path,
+            };
+            Slug::new(permalink.as_deref(), slug_path)?
+         },
          subtitle: item.subtitle.map(render).transpose()?,
          link: item.link, // I don’t *think* this makes sense to have in the cascade.
          layout: item.layout.or(cascade.layout(dir)).or(default_layout),
@@ -208,21 +218,26 @@ impl Slug {
                source: None,
             })?;
 
-            let end = source
-               .file_stem()
-               .ok_or_else(|| Error::BadPermalink {
-                  reason: format!("missing file stem on '{source}'?!?"),
-                  source: None,
-               })
-               .map(slugify)?;
+            let prefix = source.file_prefix().ok_or_else(|| Error::BadPermalink {
+               reason: format!("missing file stem on '{source}'?!?"),
+               source: None,
+            })?;
 
-            Ok(Slug::FromPath(start.join(end)))
+            let extension = source
+               .file_name()
+               .map(|name| &name[prefix.len()..])
+               .unwrap_or_default();
+
+            let marker = if prefix.starts_with('.') { "." } else { "" };
+            let stem = prefix.strip_prefix('.').unwrap_or(prefix);
+
+            let slug = marker.to_owned() + &slugify(stem) + extension;
+
+            Ok(Slug::FromPath(start.join(slug)))
          }
       }
    }
 
-   /// Construct a slug where there is no associated metadata and therefore no need to
-   /// bother worrying about passing in a metadata-derived permalink string.
    pub fn from_path(source: &Utf8Path) -> Result<Slug, Error> {
       Slug::new(None, source)
    }
@@ -624,16 +639,16 @@ mod tests {
 
    #[test]
    fn slug_from_simple_relative_path_with_simple_title() {
-      let source = Utf8PathBuf::from("a/b/c/q.rs");
-      let expected = Utf8PathBuf::from("a/b/c/q");
+      let source = Utf8PathBuf::from("a/b/c/q.md");
+      let expected = Utf8PathBuf::from("a/b/c/q.md");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
 
    #[test]
    fn slug_from_simple_relative_path_with_complicated_title() {
-      let source = Utf8PathBuf::from("a/b/c/Q R S.rs");
-      let expected = Utf8PathBuf::from("a/b/c/q-r-s");
+      let source = Utf8PathBuf::from("a/b/c/Q R S.adoc");
+      let expected = Utf8PathBuf::from("a/b/c/q-r-s.adoc");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
@@ -641,15 +656,28 @@ mod tests {
    #[test]
    fn slug_from_complex_relative_path_with_simple_title() {
       let source = Utf8PathBuf::from("a/B C/d/q.rs");
-      let expected = Utf8PathBuf::from("a/B C/d/q");
+      let expected = Utf8PathBuf::from("a/B C/d/q.rs");
+
+      assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
+   }
+
+   #[test]
+   fn slug_preserves_a_leading_dot() {
+      let source = Utf8PathBuf::from("a/b/c/.hidden.file");
+      let expected = Utf8PathBuf::from("a/b/c/.hidden.file");
+
+      assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
+
+      let source = Utf8PathBuf::from("a/b/c/.Hidden File.md");
+      let expected = Utf8PathBuf::from("a/b/c/.hidden-file.md");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
 
    #[test]
    fn slug_from_complex_relative_path_with_complex_title() {
-      let source = Utf8PathBuf::from("a/B C/d/Q R S.rs");
-      let expected = Utf8PathBuf::from("a/B C/d/q-r-s");
+      let source = Utf8PathBuf::from("a/B C/d/Q R S.lx.neato");
+      let expected = Utf8PathBuf::from("a/B C/d/q-r-s.lx.neato");
 
       assert_eq!(Slug::new(None, &source).unwrap(), Slug::FromPath(expected));
    }
