@@ -16,6 +16,7 @@ This is `lx` (⚡️), a hyper-specialized static site generator for Chris Krych
 - Each TDD step requires my explicit approval before the next step begins.
 - No single implementation step may change more than 200 lines.
 - Do not make architectural or interface decisions on the user's behalf. This includes module or layer structure, seams, domain models, public interfaces, persistence choices, and algorithms. When implementation requires such a choice, present concrete alternatives and their tradeoffs, then wait for direction.
+- In unit tests, never test non-exported items; always and only test against `pub` APIs in Rust or `export`-ed APIs in TS.
 
 Use subagents to preserve top-level context effectively: make the top-level agent a coördinator, delegating planning, exploration, and execution to sub-agents.
 
