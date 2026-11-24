@@ -399,15 +399,25 @@ impl<'s> Item<'s> {
 
    /// The path the item writes to, relative to the output root.
    pub fn output_path(&self) -> Utf8PathBuf {
-      match &self.source.kind {
-         // For Markdown source files, I emit `foo.md` at `foo/index.html` so that the
-         // input is always in predictable nice location that does *not* include `.html`
-         // as its suffix, by dint of how both the dev server and the production servers
-         // I use work.
-         Kind::Markdown => self.path.as_ref().with_extension("").join("index.html"),
+      let path = self.path.as_ref();
 
-         // For everything else, their (slugified) path is already ready to go.
-         Kind::Templated(_) | Kind::Raw => self.path.as_ref().to_owned(),
+      match self.data().map(|data| &data.slug) {
+         Some(Slug::Permalink(_)) if path.extension().is_none() => {
+            path.join("index.html")
+         }
+
+         Some(Slug::Permalink(_)) => path.to_owned(),
+
+         _ => match &self.source.kind {
+            // For Markdown source files, I emit `foo.md` at `foo/index.html` so that the
+            // input is always in predictable nice location that does *not* include `.html`
+            // as its suffix, by dint of how both the dev server and the production servers
+            // I use work.
+            Kind::Markdown => path.with_extension("").join("index.html"),
+
+            // For everything else, their (slugified) path is already ready to go.
+            Kind::Templated(_) | Kind::Raw => path.to_owned(),
+         },
       }
    }
 
@@ -878,6 +888,57 @@ mod tests {
       assert_eq!(item(&templated, &cascade()).path().as_ref(), "feed");
    }
 
+   #[cfg(test)]
+   mod permalinks {
+      use super::*;
+
+      #[test]
+      fn without_an_extension_are_directory_routes() {
+         let markdown = source(
+            "content/journal/Hello World.md",
+            "---\ntitle: Hello\npermalink: /foo\n---\nbody",
+         );
+         assert_eq!(output_path(&markdown, &cascade()), "foo/index.html");
+
+         let markdown = source(
+            "content/journal/Hello World.md",
+            "---\ntitle: Hello\npermalink: /foo/\n---\nbody",
+         );
+         assert_eq!(output_path(&markdown, &cascade()), "foo/index.html");
+
+         let templated =
+            source("content/thing.lx.html", "---\npermalink: /foo/\n---\nbody");
+         assert_eq!(output_path(&templated, &cascade()), "foo/index.html");
+
+         // This is weird and if I ever do it something has *probably* gone sideways, but
+         // it should work!
+         let templated =
+            source("content/thing.lx.xml", "---\npermalink: /foo/\n---\nbody");
+         assert_eq!(output_path(&templated, &cascade()), "foo/index.html");
+      }
+
+      #[test]
+      fn naming_a_file_are_written_verbatim() {
+         let markdown = source(
+            "content/pages/404.md",
+            "---\ntitle: Lost\npermalink: 404.html\n---\nbody",
+         );
+         assert_eq!(output_path(&markdown, &cascade()), "404.html");
+
+         let templated = source(
+            "content/feed.lx.xml",
+            "---\npermalink: /feed.xml\n---\nbody",
+         );
+         assert_eq!(output_path(&templated, &cascade()), "feed.xml");
+
+         let templated = source(
+            "content/thing.lx.html",
+            "---\npermalink: other.html\n---\nbody",
+         );
+         assert_eq!(output_path(&templated, &cascade()), "other.html");
+      }
+   }
+
    #[test]
    fn markdown_outputs_index_html_inside_its_directory() {
       let source = source(
@@ -901,6 +962,18 @@ mod tests {
 
       let nested = source("content/nested/thing.lx.json", "body");
       assert_eq!(output_path(&nested, &cascade()), "nested/thing.json");
+   }
+
+   #[test]
+   fn templated_html_without_a_permalink_outputs_at_its_derived_path() {
+      let templated = source(
+         "content/thing.lx.html",
+         "---\nlayout: page.jinja\n---\nbody",
+      );
+      assert_eq!(output_path(&templated, &cascade()), "thing.html");
+
+      let standalone = source("content/thing.html.lx", "body");
+      assert_eq!(output_path(&standalone, &cascade()), "thing.html");
    }
 
    #[test]
