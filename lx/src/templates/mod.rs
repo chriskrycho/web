@@ -7,6 +7,10 @@ use minijinja::Environment;
 use serde::Serialize;
 use thiserror::Error;
 
+pub const PASS_THROUGH: &str = "PASS_THROUGH";
+
+const PASS_THROUGH_TEMPLATE: &str = "{{ content | safe }}";
+
 #[derive(Error, Debug)]
 pub enum Error {
    #[error("could not load templates: {source}")]
@@ -64,6 +68,9 @@ where
 
    filters::add_all(&mut env);
    functions::add_all(&mut env);
+
+   env.add_template_owned(PASS_THROUGH, PASS_THROUGH_TEMPLATE)
+      .expect("It is always possible to add the PASS_THROUGH template");
 
    Ok(env)
 }

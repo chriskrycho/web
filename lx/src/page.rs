@@ -44,14 +44,7 @@ fn prepare_markdown<'e>(
       .ok_or(Error::MissingMetadata)
       .and_then(|src| serial::Item::try_parse(&src).map_err(Error::from))
       .and_then(|item_metadata| {
-         Metadata::resolved(
-            item_metadata,
-            source,
-            cascade,
-            Some(String::from("base.jinja")), // TODO: not this
-            config,
-         )
-         .map_err(Error::from)
+         Metadata::resolved(item_metadata, source, cascade, config).map_err(Error::from)
       })?;
 
    if data.title.is_none() {
@@ -77,8 +70,7 @@ fn prepare_template<'e>(
       None => serial::Item::default(),
    };
 
-   let (data, date) = Metadata::resolved(item_metadata, source, cascade, None, config)
-      .map_err(Error::from)?;
+   let (data, date) = Metadata::resolved(item_metadata, source, cascade, config)?;
 
    Ok(PreparedPage {
       data,
@@ -773,13 +765,42 @@ mod tests {
    }
 
    fn item<'e>(source: &'e Source, cascade: &Cascade) -> Item<'e> {
-      prepare(source, cascade, &config())
+      item_with(source, cascade, &config())
+   }
+
+   fn item_with<'e>(source: &'e Source, cascade: &Cascade, config: &Config) -> Item<'e> {
+      prepare(source, cascade, config)
          .unwrap()
          .process(&mut Highlighter::new(), |text, _| Ok(text.to_owned()))
          .and_then(|processed| {
             Item::from_processed(processed, source, Utf8Path::new("content"))
          })
          .unwrap()
+   }
+
+   fn item_with_jinja<'e>(
+      source: &'e Source,
+      cascade: &Cascade,
+      config: &Config,
+      env: &Environment,
+   ) -> Item<'e> {
+      prepare(source, cascade, config)
+         .unwrap()
+         .process(&mut Highlighter::new(), |text, metadata| {
+            env.render_str(text, metadata).map_err(|source| {
+               Box::new(source) as Box<dyn std::error::Error + Send + Sync>
+            })
+         })
+         .and_then(|processed| {
+            Item::from_processed(processed, source, Utf8Path::new("content"))
+         })
+         .unwrap()
+   }
+
+   fn config_with_default_layout(layout: &str) -> Config {
+      let mut config = config();
+      config.default_layout = Some(String::from(layout));
+      config
    }
 
    fn body<'a>(item: &'a Item<'a>) -> &'a str {
@@ -1075,6 +1096,294 @@ mod tests {
       assert_eq!(
          items[0].render(&env, &info).unwrap(),
          "<p>body</p>\n|2024-01-01T00:00:00+00:00|2"
+      );
+   }
+
+   #[test]
+   fn pass_through_layout_renders_only_the_body() {
+      let env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      let config = config();
+
+      let source = source(
+         "content/journal/Hello.md",
+         indoc! {r#"
+            ---
+            title: Hello
+            layout: PASS_THROUGH
+            ---
+            body
+         "#},
+      );
+
+      let item = item(&source, &cascade());
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(item.render(&env, &info).unwrap(), "<p>body</p>\n");
+   }
+
+   #[test]
+   fn renders_with_the_configured_default_layout() {
+      let mut env = Environment::new();
+      env.add_template(
+         "wrapper.jinja",
+         indoc! {r#"
+            <wrap>{{ content }}</wrap>
+         "#},
+      )
+      .unwrap();
+      let config = config_with_default_layout("wrapper.jinja");
+
+      let source = source(
+         "content/page.md",
+         indoc! {r#"
+            ---
+            title: Page
+            ---
+            body
+         "#},
+      );
+      let item = item_with(&source, &cascade(), &config);
+      let archive = Archive::new(vec![]).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <wrap><p>body</p>
+            </wrap>"#}
+      );
+   }
+
+   #[test]
+   fn configured_pass_through_default_renders_only_the_body() {
+      let env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      let config = config_with_default_layout(templates::PASS_THROUGH);
+
+      let source = source(
+         "content/page.md",
+         indoc! {r#"
+            ---
+            title: Page
+            ---
+            body
+         "#},
+      );
+
+      let item = item_with(&source, &cascade(), &config);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(item.render(&env, &info).unwrap(), "<p>body</p>\n");
+   }
+
+   #[test]
+   fn templated_content_uses_the_configured_default_layout() {
+      let mut env = Environment::new();
+      env.add_template(
+         "wrapper.jinja",
+         indoc! {r#"
+            <wrap>{{ content }}</wrap>
+         "#},
+      )
+      .unwrap();
+
+      let config = config_with_default_layout("wrapper.jinja");
+
+      let source = source(
+         "content/thing.lx.xml",
+         indoc! {r#"
+            ---
+            title: Thing
+            ---
+            <feed/>
+         "#},
+      );
+
+      let item = item_with(&source, &cascade(), &config);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <wrap><feed/>
+            </wrap>"#}
+      );
+   }
+
+   #[test]
+   fn pass_through_renders_the_body_without_the_configured_default_layout() {
+      let mut env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      env.add_template(
+         "base.jinja",
+         indoc! {r#"
+            WRAP[{{ content }}]
+         "#},
+      )
+      .unwrap();
+      let config = config_with_default_layout("base.jinja");
+
+      let source = source(
+         "content/greeting.lx.html",
+         indoc! {r#"
+            ---
+            title: A Greeting
+            layout: PASS_THROUGH
+            ---
+            <html>
+              <head>
+                <title>{{title}}</title>
+              </head>
+              <body>
+                <h1>{{title}}</h1>
+                <p>Hello! Ahoy! HEY!</p>
+              </body>
+            </html>
+         "#},
+      );
+
+      let item = item_with_jinja(&source, &cascade(), &config, &env);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <html>
+              <head>
+                <title>A Greeting</title>
+              </head>
+              <body>
+                <h1>A Greeting</h1>
+                <p>Hello! Ahoy! HEY!</p>
+              </body>
+            </html>"#}
+      );
+   }
+
+   #[test]
+   fn pass_through_markdown_renders_embedded_jinja() {
+      let env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      let config = config();
+
+      let source = source(
+         "content/greeting.md",
+         indoc! {r#"
+            ---
+            title: A Greeting
+            layout: PASS_THROUGH
+            ---
+            # {{title}}
+
+            Hello, {{ 1 + 1 }}!
+         "#},
+      );
+
+      let item = item_with_jinja(&source, &cascade(), &config, &env);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <h1>A Greeting</h1>
+            <p>Hello, 2!</p>
+         "#}
+      );
+   }
+
+   #[test]
+   fn pass_through_markdown_does_not_render_jinja_code() {
+      let env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      let config = config();
+
+      let source = source(
+         "content/greeting.md",
+         indoc! {r#"
+            ---
+            title: A Greeting
+            layout: PASS_THROUGH
+            ---
+            # {{title}}
+
+            An example:
+
+            ```jinja
+            <html>
+              <body>
+                <h1>{{title}}</h1>
+              </body>
+            </html>
+            ```
+         "#},
+      );
+
+      let item = item_with_jinja(&source, &cascade(), &config, &env);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <h1>A Greeting</h1>
+            <p>An example:</p>
+            <pre lang="jinja"><code class="jinja">&lt;html&gt;
+              &lt;body&gt;
+                &lt;h1&gt;{{title}}&lt;/h1&gt;
+              &lt;/body&gt;
+            &lt;/html&gt;
+            </code></pre>"#}
+      );
+   }
+
+   #[test]
+   fn default_layout_markdown_does_not_render_jinja_code() {
+      let mut env = templates::load(Vec::<Utf8PathBuf>::new(), |path| Ok(path)).unwrap();
+      env.add_template(
+         "base.jinja",
+         indoc! {r#"
+            <html><body>{{ content }}</body></html>
+         "#},
+      )
+      .unwrap();
+      let config = config_with_default_layout("base.jinja");
+
+      let source = source(
+         "content/greeting.md",
+         indoc! {r#"
+            ---
+            title: A Greeting
+            ---
+            # {{title}}
+
+            An example:
+
+            ```jinja
+            <html>
+              <body>
+                <h1>{{title}}</h1>
+              </body>
+            </html>
+            ```
+         "#},
+      );
+
+      let item = item_with_jinja(&source, &cascade(), &config, &env);
+      let archive = Archive::new(Vec::new()).unwrap();
+      let info = render_info(&config, &archive);
+
+      assert_eq!(
+         item.render(&env, &info).unwrap(),
+         indoc! {r#"
+            <html><body><h1>A Greeting</h1>
+            <p>An example:</p>
+            <pre lang="jinja"><code class="jinja">&lt;html&gt;
+              &lt;body&gt;
+                &lt;h1&gt;{{title}}&lt;/h1&gt;
+              &lt;/body&gt;
+            &lt;/html&gt;
+            </code></pre></body></html>"#}
       );
    }
 

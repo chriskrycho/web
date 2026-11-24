@@ -59,7 +59,6 @@ impl Metadata {
       item: serial::Item,
       source: &page::Source,
       cascade: &Cascade,
-      default_layout: Option<String>,
       config: &Config,
    ) -> Result<(Self, Option<Date>), Error> {
       // Note: the ordering throughout this method is intentional: it minimizes the
@@ -101,7 +100,10 @@ impl Metadata {
          },
          subtitle: item.subtitle.map(render).transpose()?,
          link: item.link, // I don’t *think* this makes sense to have in the cascade.
-         layout: item.layout.or(cascade.layout(dir)).or(default_layout),
+         layout: item
+            .layout
+            .or(cascade.layout(dir))
+            .or_else(|| config.default_layout.to_owned()),
          summary: item.summary.map(render).transpose()?,
          qualifiers: {
             let from_item = item.qualifiers.unwrap_or_default();

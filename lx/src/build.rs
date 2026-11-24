@@ -841,6 +841,7 @@ mod tests {
                time_zone: America/Denver
                image:
                   url: https://example.com/image.png
+               default_layout: base.jinja
                "#,
                site.root
             },

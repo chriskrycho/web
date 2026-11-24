@@ -15,6 +15,7 @@ author:
     Mastodon: https://mastodon.social/@chriskrycho
 output: public
 time_zone: America/Denver
+default_layout: base.jinja
 nav:
   - { type: 'page', title: 'Archive', path: '/archive/' }
   - { type: 'separator' }

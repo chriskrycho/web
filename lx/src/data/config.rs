@@ -38,6 +38,8 @@ pub struct Config {
    pub time_zone: TimeZone,
    pub image: Image,
    #[serde(default)]
+   pub default_layout: Option<String>,
+   #[serde(default)]
    pub nav: Vec<NavItem>,
 }
 
@@ -54,6 +56,7 @@ impl Config {
          output: serial_cfg.output,
          time_zone: serial_cfg.time_zone,
          image: Image::from(serial_cfg.image),
+         default_layout: serial_cfg.default_layout,
          nav: serial_cfg.nav,
       })
    }
@@ -92,6 +95,8 @@ pub mod serial {
       #[serde(deserialize_with = "super::deserialize_time_zone", alias = "timezone")]
       pub time_zone: jiff::tz::TimeZone,
       pub image: crate::data::image::serial::Image,
+      #[serde(default)]
+      pub default_layout: Option<String>,
       #[serde(default)]
       pub nav: Vec<NavItem>,
    }
