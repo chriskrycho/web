@@ -56,4 +56,5 @@ jiff = { version = "=1.0.2", default-features = false, features = [
 ] }
 
 [dev-dependencies]
+indoc = { workspace = true }
 tower = { version = "0.5", features = ["util"] }

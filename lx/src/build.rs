@@ -341,6 +341,9 @@ pub enum Error {
    #[error(transparent)]
    Glob { source: glob::GlobError },
 
+   #[error("could not walk the content directory")]
+   ContentWalk { source: ignore::Error },
+
    // Doesn't bother with the source error because it's [`std::path::StripPrefixError`],
    // which is fundamentally uninteresting (it's just a tuple struct with a private
    // internal `()` so it cannot be constructed other than by `strip_prefix`, and `camino`
@@ -470,16 +473,15 @@ struct SiteFiles {
    styles: Vec<Utf8PathBuf>,
 }
 
+const DATA_FILE: &str = "_data.lx.yaml";
+
 impl SiteFiles {
    fn in_dir(in_dir: &Utf8Path) -> Result<SiteFiles, Error> {
       let content_dir = in_dir.join("content");
       trace!("content_dir: {content_dir}");
 
-      let data = resolved_paths_for(&format!("{content_dir}/**/_data.lx.yaml"))?;
-      let content = resolved_paths_for(&format!("{content_dir}/**/*.md"))?
-         .into_iter()
-         .filter(|p| !data.contains(p))
-         .collect();
+      let data = resolved_paths_for(&format!("{content_dir}/**/{DATA_FILE}"))?;
+      let content = content_files(&content_dir)?;
 
       let site_files = SiteFiles {
          config: in_dir.join("config.lx.yaml"),
@@ -523,6 +525,34 @@ fn display_paths(paths: &[Utf8PathBuf]) -> String {
    sep + &path_strings
 }
 
+fn content_files(content_dir: &Utf8Path) -> Result<Vec<Utf8PathBuf>, Error> {
+   let mut files = Vec::new();
+
+   // Allow hidden files; leave all the other default filters in place.
+   for entry in ignore::WalkBuilder::new(content_dir).hidden(false).build() {
+      let entry = entry.map_err(|source| Error::ContentWalk { source })?;
+
+      if entry
+         .file_type()
+         .is_some_and(|file_type| file_type.is_file())
+      {
+         let path = Utf8PathBuf::try_from(entry.into_path()).map_err(|source| {
+            Error::NonUtf8Path {
+               path: source.as_path().to_owned(),
+               source,
+            }
+         })?;
+
+         if path.file_name() != Some(DATA_FILE) {
+            files.push(path);
+         }
+      }
+   }
+
+   files.sort();
+   Ok(files)
+}
+
 fn resolved_paths_for(glob_src: &str) -> Result<Vec<Utf8PathBuf>, Error> {
    glob::glob(glob_src)
       .map_err(|source| Error::GlobPattern {
@@ -540,4 +570,125 @@ fn resolved_paths_for(glob_src: &str) -> Result<Vec<Utf8PathBuf>, Error> {
          Err(source) => Err(Error::Glob { source }),
       })
       .map(|paths| paths.into_iter().filter(|path| path.is_file()).collect())
+}
+
+#[cfg(test)]
+mod tests {
+   use std::sync::atomic::{AtomicUsize, Ordering};
+
+   use indoc::formatdoc;
+
+   use super::*;
+
+   #[test]
+   fn content_walk_skips_hidden_ignored_and_data_files() {
+      let site = Site::new();
+
+      site.write("_ui/base.jinja", "{{ content }}");
+      site.write("content/index.md", "---\ntitle: Index\n---\nbody");
+      site.write("content/.hidden.file", "---\ntitle: Hidden\n---\nbody");
+      site.write("content/ignored.md", "---\ntitle: Ignored\n---\nbody");
+      site.write("content/.ignore", "ignored.md\n.ignore");
+      site.write(&format!("content/nested/{DATA_FILE}"), "title: Nested");
+
+      site.build();
+
+      assert_eq!(site.outputs(), vec![".hidden.file", "index/index.html"]);
+   }
+
+   #[test]
+   fn raw_content_is_copied_verbatim() {
+      let site = Site::new();
+      let source = "{\n  \"a\": 1\n}\n";
+      site.write("content/data/thing.json", source);
+
+      site.build();
+
+      let copied = fs::read_to_string(site.root.join("public/data/thing.json")).unwrap();
+      assert_eq!(copied, source);
+   }
+
+   struct Site {
+      root: Utf8PathBuf,
+   }
+
+   impl Site {
+      fn new() -> Self {
+         static COUNTER: AtomicUsize = AtomicUsize::new(0);
+         let root = Utf8PathBuf::from_path_buf(std::env::temp_dir())
+            .unwrap()
+            .join(format!(
+               "lx-{}-{}",
+               std::process::id(),
+               COUNTER.fetch_add(1, Ordering::Relaxed)
+            ));
+         fs::create_dir_all(&root).unwrap();
+
+         let site = Site { root };
+
+         site.write(
+            "config.lx.yaml",
+            &formatdoc! {r#"
+               url: https://example.com
+               repo: https://example.com/repo
+               title: {{ normal: Example }}
+               description: Example
+               author:
+                  name: Example
+                  email: hello@example.com
+                  links: {{}}
+               output: {}/public
+               time_zone: America/Denver
+               image:
+                  url: https://example.com/image.png
+               "#,
+               site.root
+            },
+         );
+
+         site
+      }
+
+      fn write(&self, path: &str, contents: &str) {
+         let path = self.root.join(path);
+         fs::create_dir_all(path.parent().unwrap()).unwrap();
+         fs::write(&path, contents).unwrap();
+      }
+
+      fn build(&self) {
+         let directory = Canonicalized::try_from(self.root.clone()).unwrap();
+         let config = config_for(&directory).unwrap();
+         build(&directory, &config, Mode::Build).unwrap();
+      }
+
+      fn outputs(&self) -> Vec<String> {
+         let mut paths = Vec::new();
+         let mut dirs = vec![self.root.join("public")];
+
+         while let Some(dir) = dirs.pop() {
+            for entry in fs::read_dir(&dir).unwrap() {
+               let path = Utf8PathBuf::from_path_buf(entry.unwrap().path()).unwrap();
+               if path.is_dir() {
+                  dirs.push(path);
+               } else {
+                  paths.push(
+                     path
+                        .strip_prefix(self.root.join("public"))
+                        .unwrap()
+                        .to_string(),
+                  );
+               }
+            }
+         }
+
+         paths.sort();
+         paths
+      }
+   }
+
+   impl Drop for Site {
+      fn drop(&mut self) {
+         fs::remove_dir_all(&self.root).unwrap();
+      }
+   }
 }

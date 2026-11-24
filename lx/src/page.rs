@@ -706,6 +706,7 @@ pub struct Collections(HashMap<Id, crate::collection::Id>);
 
 #[cfg(test)]
 mod tests {
+   use indoc::indoc;
    use minijinja::Environment;
 
    use super::*;
@@ -723,9 +724,20 @@ mod tests {
    }
 
    fn config() -> Config {
-      serde_yaml::from_str(
-         "url: https://example.com\nrepo: https://example.com/repo\ntitle: Example\ndescription: Example\nauthor:\n  name: Example\n  email: hello@example.com\n  links: {}\noutput: public\ntime_zone: America/Denver\nimage:\n  url: https://example.com/image.png\n",
-      )
+      serde_yaml::from_str(indoc! {r#"
+         url: https://example.com
+         repo: https://example.com/repo
+         title: Example
+         description: Example
+         author:
+           name: Example
+           email: hello@example.com
+           links: {}
+         output: public
+         time_zone: America/Denver
+         image:
+           url: https://example.com/image.png
+      "#})
       .unwrap()
    }
 

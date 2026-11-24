@@ -74,7 +74,7 @@ Each step ends with a focused test run, relevant package checks, a diff summary,
 3. Add tests for fenced, absent, empty, malformed, and unclosed front matter; implement source loading, metadata parsing, and layout extraction.
 4. Add tests for a standalone body template with no layout; add source-aware string rendering and the shared template render helper.
 5. Add tests for local and cascade-inherited layouts, fixed build time, collection ordering, and `url_for(path, config)`; implement the shared layout resolver, explicit-template context, and post-page rendering pass.
-6. Add tests for ignored, hidden, `_data.lx.yaml`, binary, and ordinary raw content; implement the `ignore` walk and verbatim-copy stage.
+6. Add tests for ignored, hidden, `_data.lx.yaml`, and ordinary raw content; implement the `ignore` walk and verbatim-copy stage. (Note: binary files are intentionally treated as an error.)
 7. Add tests for duplicate and ancestor/descendant output collisions across Markdown, templates, raw files, static files, and CSS; implement the output registry and validation before writes.
 8. Add tests for HTML live reload in Serve mode, non-injection for non-HTML outputs, and the `.htm` hard error; implement output-type handling.
 9. Migrate the v6 feed source and placeholder template; verify the complete v6 build and `public/feed.xml`.
@@ -93,7 +93,7 @@ Each step ends with a focused test run, relevant package checks, a diff summary,
 ## Assumptions
 
 - `ignore` means the crate named `ignore`, with its normal hidden-file and ignore-file behavior.
-- Raw copies preserve bytes and relative paths, except for hidden, ignored, and `_data.lx.yaml` files.
+- Raw copies preserve bytes and relative paths, except for hidden, ignored, and `_data.lx.yaml` files. (Note: UTF-8 is required, so this still holds even when files are invalid, because they will intentionally fail the build.)
 - Collision detection covers exact paths and ancestor/descendant path conflicts.
 - Existing Markdown metadata and output behavior is unchanged apart from sharing the common layout resolver and rendering helper.
 - No README or implementation comments are added in this work.
