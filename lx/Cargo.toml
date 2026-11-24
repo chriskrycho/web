@@ -1,5 +1,7 @@
 [package]
 name = "lx"
+description = "⚡️ My hyper-specialized tool for building my own website."
+readme = "../README.md"
 authors.workspace = true
 version.workspace = true
 edition.workspace = true

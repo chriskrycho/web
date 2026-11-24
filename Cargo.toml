@@ -6,11 +6,8 @@ members = ["lx", "lx/crates/*"]
 version = "1.0.0"
 authors = ["Chris Krycho <hello@chriskrycho.com>"]
 edition = "2024"
-description = "⚡️ My hyper-specialized tool for building my own website."
 repository = "https://github.com/chriskrycho/v6.chriskrycho.com"
-homepage = "https://github.com/chriskrycho/v6.chriskrycho.com"
 documentation = "https://github.com/chriskrycho/v6.chriskrycho.com"
-readme = "README.md"
 license = "BlueOak-1.0.0"
 
 [workspace.dependencies]

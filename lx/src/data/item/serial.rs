@@ -144,6 +144,7 @@ impl fmt::Display for Authorship {
    }
 }
 
+#[allow(dead_code)] // till I use it!
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct BibleRef {
    translation: String,

@@ -280,6 +280,7 @@ pub struct Book {
 }
 
 impl Book {
+   #[allow(dead_code)] // till I use it!
    fn as_view<'a, I: IntoIterator<Item = &'a Item<'a>>>(
       &'a self,
       items: I,
@@ -331,6 +332,7 @@ impl From<serial::Book> for Book {
    }
 }
 
+#[allow(dead_code)] // till I use it!
 #[derive(Debug, Serialize)]
 struct BookView<'a> {
    book: &'a Book,

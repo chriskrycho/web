@@ -175,11 +175,7 @@ impl<'e> Prepared<'e> {
                   .map(Content::FromTemplate)?,
             };
 
-            Ok(Processed::Item {
-               content,
-               date,
-               data,
-            })
+            Ok(Processed::item(content, date, data))
          }
 
          Prepared::Raw(source) => Ok(Processed::Raw {
@@ -200,14 +196,24 @@ pub struct PreparedPage<'e> {
 }
 
 pub enum Processed {
-   Item {
-      content: Content,
-      date: Option<Date>,
-      data: Metadata,
-   },
-   Raw {
-      content: String,
-   },
+   Item(Box<ProcessedItem>),
+   Raw { content: String },
+}
+
+impl Processed {
+   fn item(content: Content, date: Option<Date>, data: Metadata) -> Processed {
+      Processed::Item(Box::new(ProcessedItem {
+         content,
+         date,
+         data,
+      }))
+   }
+}
+
+pub struct ProcessedItem {
+   content: Content,
+   date: Option<Date>,
+   data: Metadata,
 }
 
 #[derive(Debug)]
@@ -339,17 +345,14 @@ impl<'s> Item<'s> {
       ));
 
       let (item_content, path) = match rendered {
-         Processed::Item {
-            content,
-            date,
-            data,
-         } => {
+         Processed::Item(item) => {
+            let ProcessedItem {
+               content,
+               date,
+               data,
+            } = *item;
             let path = RootedPath::new(&data.slug, in_dir)?;
-            let page = Page {
-               id,
-               content: content,
-               data: data,
-            };
+            let page = Page { id, content, data };
 
             let item_content = match date {
                Some(date) => ItemContent::Post(Post { date, page }),
@@ -377,7 +380,7 @@ impl<'s> Item<'s> {
       match &self.content {
          ItemContent::Page(page) | ItemContent::Post(Post { page, .. }) => {
             match &page.data.layout {
-               Some(layout) => Context::new(self, info).render(env, &layout),
+               Some(layout) => Context::new(self, info).render(env, layout),
                None => Context::new(self, info).render_free(env, &page.content),
             }
             .map_err(|source| Error::RenderTemplate {
@@ -409,7 +412,7 @@ impl<'s> Item<'s> {
    }
 
    pub fn source(&self) -> &Source {
-      &self.source
+      self.source
    }
 
    pub fn title(&self) -> Option<&str> {
@@ -701,6 +704,7 @@ impl From<PostAndConfig<'_, '_>> for json_feed::FeedItem {
    }
 }
 
+#[allow(dead_code)] // till I use it!
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Collections(HashMap<Id, crate::collection::Id>);
 

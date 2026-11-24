@@ -23,7 +23,7 @@ pub struct Feed<'a> {
    items: &'a [FeedPost<'a>],
 }
 
-struct FeedPost<'a> {
+pub struct FeedPost<'a> {
    post: &'a Post,
    info: PostInfo<'a>,
 }

@@ -541,7 +541,7 @@ pub enum Error {
    #[error("Error starting file watcher\n{source}")]
    WatchStart {
       #[from]
-      source: CriticalError,
+      source: Box<CriticalError>,
    },
 
    #[error("Could not open socket on address: {value}\n{source}")]
