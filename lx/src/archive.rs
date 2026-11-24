@@ -26,10 +26,7 @@ impl<'a> Archive<'a> {
 
          let month =
             u8::try_from(post.date.month()).expect("jiff months are in the range 1..=12");
-         let month = Month::try_from(month).map_err(|source| Error::BadMonth {
-            raw: u32::from(month),
-            source,
-         })?;
+         let month = Month::try_from(month).map_err(Error::BadMonth)?;
 
          let day =
             u32::try_from(post.date.day()).expect("jiff days are in the range 1..=31");
@@ -52,8 +49,8 @@ pub enum Order {
 
 #[derive(Debug, Error)]
 pub enum Error {
-   #[error("nonsense month value: '{raw}")]
-   BadMonth { raw: u32, source: MonthOutOfRange },
+   #[error(transparent)]
+   BadMonth(#[from] MonthOutOfRange),
 
    #[error(transparent)]
    BadDay {

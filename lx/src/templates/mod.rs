@@ -13,13 +13,13 @@ const PASS_THROUGH_TEMPLATE: &str = "{{ content | safe }}";
 
 #[derive(Error, Debug)]
 pub enum Error {
-   #[error("could not load templates: {source}")]
+   #[error("could not load template in '{path}'")]
    Load {
-      #[from]
       source: std::io::Error,
+      path: Utf8PathBuf,
    },
 
-   #[error("could not render template {layout}: {source}")]
+   #[error("could not render template '{layout}'")]
    Render {
       source: minijinja::Error,
       layout: String,
@@ -28,20 +28,23 @@ pub enum Error {
    #[error("could not render standalone (no-`layout`) template")]
    RenderFree { source: minijinja::Error },
 
-   #[error("could not add template for {path}")]
+   #[error("could not add template for '{path}'")]
    CouldNotAddTemplate {
       source: minijinja::Error,
       path: Utf8PathBuf,
    },
 
-   #[error("could not load template {name} for: {source}")]
+   #[error("could not load template '{name}'")]
    MissingTemplate {
       name: String,
       source: minijinja::Error,
    },
 
-   #[error(transparent)]
-   Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+   #[error("could not resolve the template name for '{path}'")]
+   ResolveName {
+      path: Utf8PathBuf,
+      source: Box<dyn std::error::Error + Send + Sync>,
+   },
 }
 
 pub fn load<I, F>(templates: I, trim_root: F) -> Result<Environment<'static>, Error>
@@ -55,8 +58,18 @@ where
    env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
    for path in templates {
       let path = path.as_ref();
-      let name = trim_root(path)?.to_string();
-      let content = std::fs::read_to_string(path)?;
+      let name = trim_root(path)
+         .map_err(|source| Error::ResolveName {
+            path: path.to_owned(),
+            source,
+         })?
+         .to_string();
+
+      let content = std::fs::read_to_string(path).map_err(|source| Error::Load {
+         source,
+         path: path.to_owned(),
+      })?;
+
       trace!("Adding template at {name}");
       env.add_template_owned(name, content).map_err(|source| {
          Error::CouldNotAddTemplate {
@@ -99,4 +112,28 @@ pub fn render_free(
 ) -> Result<String, Error> {
    env.render_str(src.as_ref(), ctx)
       .map_err(|source| Error::RenderFree { source })
+}
+
+#[cfg(test)]
+mod tests {
+   use super::*;
+
+   fn no_name(
+      _: &Utf8Path,
+   ) -> Result<&Utf8Path, Box<dyn std::error::Error + Send + Sync>> {
+      Err("not under the template root".into())
+   }
+
+   #[test]
+   fn load_reports_which_name_could_not_be_resolved() {
+      let err = match load(["ui/base.jinja"], no_name) {
+         Err(err) => err,
+         Ok(_) => panic!("expected loading to fail"),
+      };
+
+      assert_eq!(
+         err.to_string(),
+         "could not resolve the template name for 'ui/base.jinja'"
+      );
+   }
 }

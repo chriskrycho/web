@@ -157,7 +157,7 @@ pub enum Error {
    },
 
    #[error(
-      "Could not render YAML metadata as an HTML table. Instead of a table it was: {src}"
+      "Could not render YAML metadata as an HTML table. Instead of a table it was a {kind}: {src}"
    )]
    CouldNotRenderYamlMetadata { kind: InvalidKind, src: String },
 }
@@ -170,4 +170,19 @@ pub enum InvalidKind {
    String,
    Sequence,
    Tagged,
+}
+
+impl std::fmt::Display for InvalidKind {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      let kind = match self {
+         Self::Null => "null",
+         Self::Bool => "boolean",
+         Self::Number => "number",
+         Self::String => "string",
+         Self::Sequence => "sequence",
+         Self::Tagged => "tagged value",
+      };
+
+      write!(f, "{kind}")
+   }
 }

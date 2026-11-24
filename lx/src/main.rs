@@ -19,7 +19,6 @@ mod canonicalized;
 mod collection;
 mod data;
 mod datetime;
-mod error;
 mod feed;
 mod light_dark;
 mod live_reload;
@@ -300,7 +299,7 @@ enum Error {
    #[error("invalid file path with no parent directory: '{path}'")]
    InvalidDirectory { path: Utf8PathBuf },
 
-   #[error("could not create directory '{dir}' to write file '{path}")]
+   #[error("could not create directory '{dir}' to write file '{path}'")]
    CreateDirectory {
       dir: Utf8PathBuf,
       path: Utf8PathBuf,
@@ -322,7 +321,7 @@ enum Error {
    #[error("invalid theme name: {0}")]
    InvalidThemeName(String),
 
-   #[error("could not generate light-dark CSS for syntax highlighting theme: {source}")]
+   #[error("could not generate light-dark CSS for syntax highlighting theme")]
    LightDark { source: light_dark::Error },
 
    #[error("IO (for {target})")]

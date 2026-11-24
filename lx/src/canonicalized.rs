@@ -42,7 +42,7 @@ impl TryFrom<&Utf8Path> for Canonicalized {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Invalid directory '{path}: {source}")]
+#[error("Invalid directory '{path}'")]
 pub struct InvalidDir {
    path: Utf8PathBuf,
    source: io::Error,

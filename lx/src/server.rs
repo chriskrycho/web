@@ -161,9 +161,10 @@ async fn rebuild(
                }
             }
             Err(err) => {
-               warn!("rebuild failed: {err:#?}");
+               let err = anyhow::Error::new(err);
+               warn!("rebuild failed: {err:?}");
                Rebuild::Failure {
-                  cause: err.to_string(),
+                  cause: format!("{err:?}"),
                }
             }
          },
@@ -328,7 +329,12 @@ async fn websocket(socket: WebSocket, rebuild_tx: Sender<Rebuild>) {
 
                   match ws_tx.send(Message::Text(payload)).await {
                      Ok(_) => debug!("Successfully sent {rebuild_desc}"),
-                     Err(reason) => error!("Could not send WebSocket message:\n{reason}"),
+                     Err(reason) => {
+                        error!(
+                           "Could not send WebSocket message:\n{:?}",
+                           anyhow::Error::new(reason)
+                        )
+                     }
                   }
                }
                Rebuild::Failure { cause } => {
@@ -527,7 +533,7 @@ fn is_public<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, desc: P2) -> bool {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-   #[error("Build error: {source}")]
+   #[error("Build error")]
    Build {
       #[from]
       source: build::Error,
@@ -536,43 +542,37 @@ pub enum Error {
    #[error(transparent)]
    Canonicalize(#[from] crate::canonicalized::InvalidDir),
 
-   #[error("I/O error\n{source}")]
+   #[error("I/O error")]
    Io { source: io::Error },
 
-   #[error("Error starting file watcher\n{source}")]
+   #[error("Error starting file watcher")]
    WatchStart {
       #[from]
       source: Box<CriticalError>,
    },
 
-   #[error("Could not open socket on address: {value}\n{source}")]
+   #[error("Could not open socket on address: {value}")]
    BadAddress {
       value: SocketAddr,
       source: io::Error,
    },
 
-   #[error("Could not start the site server\n{source}")]
+   #[error("Could not start the site server")]
    ServeStart { source: io::Error },
 
-   #[error("Runtime error\n{source}")]
+   #[error("Runtime error")]
    Tokio {
       #[from]
       source: JoinError,
    },
 
-   #[error("Building watcher\n{source}")]
+   #[error("Building watcher")]
    Watcher {
       #[from]
       source: notify::Error,
    },
 
-   #[error(
-      "Debouncing changes from the file system:\n{}",
-      .0.iter()
-         .map(|reason| format!("{reason}"))
-         .collect::<Vec<_>>()
-         .join("\n"))
-   ]
+   #[error("could not debounce changes from the file system")]
    DebounceErrors(Vec<notify::Error>),
 
    #[error(transparent)]
@@ -584,7 +584,7 @@ pub enum Error {
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebSocketError {
-   #[error("Could not receive WebSocket message:\n{source}")]
+   #[error("Could not receive WebSocket message")]
    Receive { source: axum::Error },
 
    #[error("Unexpectedly received string WebSocket message with content:\n{0}")]

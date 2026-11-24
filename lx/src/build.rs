@@ -17,7 +17,6 @@ use crate::{
       config::{self, Config},
       item::cascade::{Cascade, CascadeLoadError},
    },
-   error::write_to_fmt,
    live_reload,
    page::{self, Item, Kind, RenderInfo, Source},
    style, templates,
@@ -327,7 +326,7 @@ pub enum Error {
       source: templates::Error,
    },
 
-   #[error("could not rewrite {text} with minijinja")]
+   #[error("could not rewrite the page text with minijinja")]
    Rewrite {
       text: String,
       source: minijinja::Error,
@@ -339,7 +338,7 @@ pub enum Error {
       source: CascadeLoadError,
    },
 
-   #[error("could not load site config: {source}")]
+   #[error("could not load site config")]
    Config {
       #[from]
       source: config::Error,
@@ -430,13 +429,13 @@ pub enum Error {
       source: io::Error,
    },
 
-   #[error("Could not convert path '{}' to unicode: {source}", path.display())]
+   #[error("Could not convert path '{}' to unicode", path.display())]
    NonUtf8Path {
       source: camino::FromPathBufError,
       path: std::path::PathBuf,
    },
 
-   #[error("could not inject live reload into '{path}': {source}")]
+   #[error("could not inject live reload into '{path}'")]
    LiveReload {
       path: Utf8PathBuf,
       source: live_reload::Error,
@@ -472,36 +471,32 @@ impl Error {
    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum PageErrorKind {
    Prepare,
    Render,
 }
 
-// This has its own type definition so that it can have its own `impl` for `fmt::Display`
-// (see immediately below) so that `Error` can simply `#[derive(thiserror::Error)]`.
+impl fmt::Display for PageErrorKind {
+   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      match self {
+         Self::Prepare => write!(f, "prepare"),
+         Self::Render => write!(f, "render"),
+      }
+   }
+}
+
 #[derive(Error, Debug)]
+#[error("could not {kind} {} pages", .errors.len())]
 pub struct PageError {
    errors: Vec<(Utf8PathBuf, page::Error)>,
    kind: PageErrorKind,
 }
 
-impl fmt::Display for PageError {
-   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      let count = self.errors.len();
-      match self.kind {
-         PageErrorKind::Prepare => {
-            writeln!(f, "could not prepare {count} pages for rendering")?
-         }
-         PageErrorKind::Render => writeln!(f, "could not render {count} pages")?,
-      };
-
-      for (path, error) in &self.errors {
-         writeln!(f, "{path}:\n\t{error}")?;
-         write_to_fmt(f, error)?;
-      }
-
-      Ok(())
+impl PageError {
+   #[allow(dead_code)]
+   pub fn errors(&self) -> &[(Utf8PathBuf, page::Error)] {
+      &self.errors
    }
 }
 

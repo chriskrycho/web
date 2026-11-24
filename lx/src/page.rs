@@ -188,10 +188,7 @@ impl<'e> Prepared<'e> {
                }
 
                Body::Template(template) => postprocess(template, &data)
-                  .map_err(|source| Error::Postprocess {
-                     source,
-                     original: template.to_string(),
-                  })
+                  .map_err(|source| Error::Postprocess { source })
                   .map(Content::FromTemplate)?,
             };
 
@@ -648,7 +645,7 @@ pub enum Error {
    #[error("output '{path}' ends in '.htm'; write it as '.html' instead")]
    UnsupportedHtmlExtension { path: Utf8PathBuf },
 
-   #[error("could not render template for item at {path}: {source}")]
+   #[error("could not render template for item at {path}")]
    RenderTemplate {
       path: Utf8PathBuf,
       source: templates::Error,
@@ -664,7 +661,6 @@ pub enum Error {
    #[error("error rendering Jinja template")]
    Postprocess {
       source: Box<dyn error::Error + Send + Sync>,
-      original: String,
    },
 }
 
