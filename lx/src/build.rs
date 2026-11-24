@@ -1,3 +1,5 @@
+pub mod vfs;
+
 use std::{error, fmt, fs, io};
 
 use arborium::Highlighter;
