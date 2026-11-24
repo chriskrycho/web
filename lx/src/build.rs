@@ -23,9 +23,11 @@ use crate::{
    style, templates,
 };
 
+use vfs::{Provenance, Vfs};
+
 pub fn build_in(directory: Canonicalized) -> Result<(), Error> {
    let config = config_for(&directory)?;
-   build(&directory, &config, Mode::Build)
+   build(&directory, &config, Mode::Build, None)
 }
 
 pub fn config_for(source_dir: &Canonicalized) -> Result<Config, Error> {
@@ -47,8 +49,12 @@ pub fn build(
    directory: &Canonicalized,
    config: &Config,
    mode: Mode,
+   reusable_vcs: Option<&mut Vfs>,
 ) -> Result<(), Error> {
    debug!("Building in {directory}");
+
+   let mut local_only_vfs = Vfs::new();
+   let vfs = reusable_vcs.unwrap_or(&mut local_only_vfs);
 
    clear_output_dir(config, mode)?;
 
@@ -135,6 +141,50 @@ pub fn build(
       archive: &archive,
    };
 
+   let styles = site_files
+      .styles
+      .iter()
+      // only build the “root” files
+      .filter(|path| {
+         // Only build the “root” CSS files; everything else is a partial pulled in
+         // via `@import` (and is bundled into the root file).
+         !path
+            .file_name()
+            .expect("all CSS files have file names")
+            .starts_with('_')
+            && path.parent() == Some(input_dir.join("_styles").as_path())
+      })
+      .cloned()
+      .collect::<Vec<_>>();
+
+   for static_file in &site_files.static_files {
+      let relative_path = static_file
+         .strip_prefix(input_dir.join("_static"))
+         .map_err(|_| Error::StripPrefix {
+            prefix: input_dir.to_owned(),
+            path: static_file.clone(),
+         })?;
+
+      vfs.insert(relative_path, Provenance::Static(static_file.clone()))?;
+   }
+
+   for item in &items {
+      let provenance = Provenance::Content(item.source().path.clone());
+      vfs.insert(&item.output_path(), provenance)?;
+   }
+
+   for css_file in &styles {
+      let relative_path = css_file
+         .strip_prefix(input_dir.join("_styles"))
+         .map_err(|_| Error::StripPrefix {
+            prefix: input_dir.to_owned(),
+            path: css_file.clone(),
+         })?
+         .with_extension("css");
+
+      vfs.insert(&relative_path, Provenance::Style(css_file.clone()))?;
+   }
+
    debug!("Copying {} static files", site_files.static_files.len());
    for static_file in site_files.static_files.iter() {
       let relative_path = static_file
@@ -179,20 +229,7 @@ pub fn build(
       emit(&path, &rendered)?;
    }
 
-   for css_file in site_files
-      .styles
-      .into_iter()
-      // only build the “root” files
-      .filter(|path| {
-         // Only build the “root” CSS files; everything else is a partial pulled in
-         // via `@import` (and is bundled into the root file).
-         !path
-            .file_name()
-            .expect("all CSS files have file names")
-            .starts_with('_')
-            && path.parent() == Some(input_dir.join("_styles").as_path())
-      })
-   {
+   for css_file in styles {
       trace!("building CSS for {css_file}");
       let converted = style::convert(&css_file, style::OutputMode::Dev)?;
       let relative_path =
@@ -396,6 +433,9 @@ pub enum Error {
       path: Utf8PathBuf,
       source: live_reload::Error,
    },
+
+   #[error(transparent)]
+   Vfs(#[from] vfs::Error),
 }
 
 impl Error {
@@ -613,6 +653,78 @@ mod tests {
    }
 
    #[test]
+   fn build_rejects_duplicate_outputs() {
+      let site = Site::new();
+
+      site.write("content/foo.json", "{}");
+      site.write("_static/foo.json", "{}");
+
+      let error = site.try_build().unwrap_err();
+
+      assert!(matches!(
+         error,
+         Error::Vfs(vfs::Error::DuplicateOutput {
+            existing: vfs::Provenance::Static(_),
+            incoming: vfs::Provenance::Content(_),
+            ..
+         })
+      ));
+   }
+
+   #[test]
+   fn build_rejects_a_stylesheet_colliding_with_a_static_file() {
+      let site = Site::new();
+
+      site.write("content/notes.txt", "hi");
+      site.write("_static/main.css", "body { color: red; }");
+      site.write("_styles/main.css", "body { color: blue; }");
+
+      let error = site.try_build().unwrap_err();
+
+      assert!(matches!(
+         error,
+         Error::Vfs(vfs::Error::DuplicateOutput {
+            existing: vfs::Provenance::Static(_),
+            incoming: vfs::Provenance::Style(_),
+            ..
+         })
+      ));
+   }
+
+   #[test]
+   fn build_rejects_a_stylesheet_colliding_with_content() {
+      let site = Site::new();
+
+      site.write("content/main.css", "body { color: red; }");
+      site.write("_styles/main.css", "body { color: blue; }");
+
+      let error = site.try_build().unwrap_err();
+
+      assert!(matches!(
+         error,
+         Error::Vfs(vfs::Error::DuplicateOutput {
+            existing: vfs::Provenance::Content(_),
+            incoming: vfs::Provenance::Style(_),
+            ..
+         })
+      ));
+   }
+
+   #[test]
+   fn build_rejects_conflicting_outputs() {
+      let site = Site::new();
+
+      site.write("_ui/base.jinja", "{{ content }}");
+      site.write("content/foo", "raw");
+      site.write("content/foo.md", "---\ntitle: Foo\n---\nbody");
+
+      assert!(matches!(
+         site.try_build(),
+         Err(Error::Vfs(vfs::Error::ConflictingOutputs { .. }))
+      ));
+   }
+
+   #[test]
    fn live_reload_applies_only_to_html_outputs() {
       let site = Site::new();
 
@@ -683,17 +795,21 @@ mod tests {
       }
 
       fn build(&self) {
-         self.build_in(Mode::Build);
+         self.build_in(Mode::Build).unwrap();
       }
 
       fn serve(&self) {
-         self.build_in(Mode::Serve);
+         self.build_in(Mode::Serve).unwrap();
       }
 
-      fn build_in(&self, mode: Mode) {
+      fn try_build(&self) -> Result<(), Error> {
+         self.build_in(Mode::Build)
+      }
+
+      fn build_in(&self, mode: Mode) -> Result<(), Error> {
          let directory = Canonicalized::try_from(self.root.clone()).unwrap();
          let config = config_for(&directory).unwrap();
-         build(&directory, &config, mode).unwrap();
+         build(&directory, &config, mode, None)
       }
 
       fn outputs(&self) -> Vec<String> {

@@ -76,7 +76,7 @@ pub fn serve(site_dir: &Utf8Path, port: Option<u16>) -> Result<(), Box<Error>> {
 
    // TODO: consider how to loop on rebuild and changes and *not serve* until there has
    // been a successful build.
-   let first_build = build(&site_dir, &config, build::Mode::Serve);
+   let first_build = build(&site_dir, &config, build::Mode::Serve, None);
    if let Err(e) = first_build {
       eprintln!("Initial build failed: {e:?}");
    }
@@ -148,8 +148,9 @@ async fn rebuild(
       let site_dir = Arc::clone(&site_dir);
       let site_config = Arc::clone(&site_config);
 
-      let rebuild_task =
-         task::spawn_blocking(move || build(&site_dir, &site_config, build::Mode::Serve));
+      let rebuild_task = task::spawn_blocking(move || {
+         build(&site_dir, &site_config, build::Mode::Serve, None)
+      });
 
       let rebuild = match rebuild_task.await {
          Ok(build_result) => match build_result.map_err(Error::from) {
