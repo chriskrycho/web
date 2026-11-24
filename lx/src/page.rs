@@ -24,10 +24,38 @@ pub fn prepare<'e>(
    config: &Config,
 ) -> Result<Prepared<'e>, Error> {
    match &source.kind {
-      Kind::Markdown => prepare_markdown(source, cascade, config).map(Prepared::page),
-      Kind::Templated(_) => prepare_template(source, cascade, config).map(Prepared::page),
+      Kind::Markdown => {
+         let page = prepare_markdown(source, cascade, config)?;
+         reject_htm_output(&page.data.slug)?;
+         Ok(Prepared::page(page))
+      }
+
+      Kind::Templated(_) => {
+         let page = prepare_template(source, cascade, config)?;
+         reject_htm_output(&page.data.slug)?;
+         Ok(Prepared::page(page))
+      }
+
       Kind::Raw => Ok(Prepared::Raw(source)),
    }
+}
+
+fn reject_htm_output(slug: &Slug) -> Result<(), Error> {
+   let path = match slug {
+      Slug::Permalink(path) => Utf8Path::new(path),
+      Slug::FromPath(path) => path.as_path(),
+   };
+
+   if path
+      .extension()
+      .is_some_and(|ext| ext.eq_ignore_ascii_case("htm"))
+   {
+      return Err(Error::UnsupportedHtmlExtension {
+         path: path.to_owned(),
+      });
+   }
+
+   Ok(())
 }
 
 fn prepare_markdown<'e>(
@@ -617,6 +645,9 @@ pub enum Error {
    #[error("front matter fence is never closed")]
    UnclosedFrontMatter,
 
+   #[error("output '{path}' ends in '.htm'; write it as '.html' instead")]
+   UnsupportedHtmlExtension { path: Utf8PathBuf },
+
    #[error("could not render template for item at {path}: {source}")]
    RenderTemplate {
       path: Utf8PathBuf,
@@ -995,6 +1026,44 @@ mod tests {
 
       let standalone = source("content/thing.html.lx", "body");
       assert_eq!(output_path(&standalone, &cascade()), "thing.html");
+   }
+
+   #[test]
+   fn rejects_templated_outputs_ending_in_htm() {
+      let lower = source("content/feed.lx.htm", "body");
+      assert!(matches!(
+         prepare(&lower, &cascade(), &config()),
+         Err(Error::UnsupportedHtmlExtension { .. })
+      ));
+
+      let upper = source("content/feed.lx.HTM", "body");
+      assert!(matches!(
+         prepare(&upper, &cascade(), &config()),
+         Err(Error::UnsupportedHtmlExtension { .. })
+      ));
+
+      let html = source("content/page.lx.html", "body");
+      assert!(prepare(&html, &cascade(), &config()).is_ok());
+
+      let permalink =
+         source("content/feed.lx.xml", "---\npermalink: feed.htm\n---\nbody");
+      assert!(matches!(
+         prepare(&permalink, &cascade(), &config()),
+         Err(Error::UnsupportedHtmlExtension { .. })
+      ));
+   }
+
+   #[test]
+   fn rejects_a_markdown_permalink_ending_in_htm() {
+      let page = source(
+         "content/pages/404.md",
+         "---\ntitle: Lost\npermalink: 404.htm\n---\nbody",
+      );
+
+      assert!(matches!(
+         prepare(&page, &cascade(), &config()),
+         Err(Error::UnsupportedHtmlExtension { .. })
+      ));
    }
 
    #[test]
