@@ -382,6 +382,14 @@ pub enum Error {
    #[error(transparent)]
    Glob { source: glob::GlobError },
 
+   #[error(
+      "the site has no content directory at '{path}'; create it and add content to build the site"
+   )]
+   MissingContentDir { path: Utf8PathBuf },
+
+   #[error("found no content in '{path}'; add content to build the site")]
+   EmptyContentDir { path: Utf8PathBuf },
+
    #[error("could not walk the content directory")]
    ContentWalk { source: ignore::Error },
 
@@ -570,6 +578,12 @@ fn display_paths(paths: &[Utf8PathBuf]) -> String {
 }
 
 fn content_files(content_dir: &Utf8Path) -> Result<Vec<Utf8PathBuf>, Error> {
+   if !content_dir.is_dir() {
+      return Err(Error::MissingContentDir {
+         path: content_dir.to_owned(),
+      });
+   }
+
    let mut files = Vec::new();
 
    // Allow hidden files; leave all the other default filters in place.
@@ -591,6 +605,12 @@ fn content_files(content_dir: &Utf8Path) -> Result<Vec<Utf8PathBuf>, Error> {
             files.push(path);
          }
       }
+   }
+
+   if files.is_empty() {
+      return Err(Error::EmptyContentDir {
+         path: content_dir.to_owned(),
+      });
    }
 
    files.sort();
@@ -650,6 +670,47 @@ mod tests {
 
       let copied = fs::read_to_string(site.root.join("public/data/thing.json")).unwrap();
       assert_eq!(copied, source);
+   }
+
+   #[test]
+   fn build_requires_a_content_directory() {
+      let site = Site::new();
+
+      assert!(matches!(
+         site.try_build(),
+         Err(Error::MissingContentDir { .. })
+      ));
+   }
+
+   #[test]
+   fn build_requires_content_in_the_content_directory() {
+      let site = Site::new();
+      site.mkdir("content");
+
+      assert!(matches!(
+         site.try_build(),
+         Err(Error::EmptyContentDir { .. })
+      ));
+   }
+
+   #[test]
+   fn build_rejects_content_that_is_only_data_files_or_ignored() {
+      let site = Site::new();
+      site.write("content/nested/_data.lx.yaml", "title: Nested");
+
+      assert!(matches!(
+         site.try_build(),
+         Err(Error::EmptyContentDir { .. })
+      ));
+
+      let site = Site::new();
+      site.write("content/ignored.md", "---\ntitle: Ignored\n---\nbody");
+      site.write("content/.ignore", "*.md\n.ignore");
+
+      assert!(matches!(
+         site.try_build(),
+         Err(Error::EmptyContentDir { .. })
+      ));
    }
 
    #[test]
@@ -786,6 +847,10 @@ mod tests {
          );
 
          site
+      }
+
+      fn mkdir(&self, path: &str) {
+         fs::create_dir_all(self.root.join(path)).unwrap();
       }
 
       fn write(&self, path: &str, contents: &str) {
