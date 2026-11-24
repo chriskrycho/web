@@ -411,6 +411,16 @@ impl<'s> Item<'s> {
       }
    }
 
+   pub fn produces_html(&self) -> bool {
+      match &self.source.kind {
+         Kind::Markdown => true,
+         Kind::Templated(path) => path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("html")),
+         Kind::Raw => false,
+      }
+   }
+
    pub fn source(&self) -> &Source {
       self.source
    }

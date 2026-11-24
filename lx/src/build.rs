@@ -165,12 +165,14 @@ pub fn build(
 
       let mut rendered = item.render(&jinja_env, &render_info)?;
 
-      live_reload::inject_for(mode, &mut rendered).map_err(|source| {
-         Error::LiveReload {
-            path: path.clone(),
-            source,
-         }
-      })?;
+      if item.produces_html() {
+         live_reload::inject_for(mode, &mut rendered).map_err(|source| {
+            Error::LiveReload {
+               path: path.clone(),
+               source,
+            }
+         })?;
+      }
 
       emit(&path, &rendered)?;
    }
@@ -608,6 +610,29 @@ mod tests {
       assert_eq!(copied, source);
    }
 
+   #[test]
+   fn live_reload_applies_only_to_html_outputs() {
+      let site = Site::new();
+
+      site.write("_ui/base.jinja", "<html><body>{{ content }}</body></html>");
+      site.write("_ui/feed.jinja", "<feed>{{ content }}</feed>");
+      site.write("_ui/page.jinja", "<html><body>{{ content }}</body></html>");
+      site.write("content/index.md", "---\ntitle: Index\n---\nbody");
+      site.write("content/feed.lx.xml", "---\nlayout: feed.jinja\n---\nbody");
+      site.write("content/page.lx.html", "---\nlayout: page.jinja\n---\nbody");
+      site.write("content/robots.html", "<html><body>raw</body></html>");
+
+      site.serve();
+
+      let rendered =
+         |path: &str| fs::read_to_string(site.root.join("public").join(path)).unwrap();
+
+      assert!(rendered("index/index.html").contains("live-reload.js"));
+      assert!(rendered("page.html").contains("live-reload.js"));
+      assert!(!rendered("feed.xml").contains("live-reload.js"));
+      assert!(!rendered("robots.html").contains("live-reload.js"));
+   }
+
    struct Site {
       root: Utf8PathBuf,
    }
@@ -656,9 +681,17 @@ mod tests {
       }
 
       fn build(&self) {
+         self.build_in(Mode::Build);
+      }
+
+      fn serve(&self) {
+         self.build_in(Mode::Serve);
+      }
+
+      fn build_in(&self, mode: Mode) {
          let directory = Canonicalized::try_from(self.root.clone()).unwrap();
          let config = config_for(&directory).unwrap();
-         build(&directory, &config, Mode::Build).unwrap();
+         build(&directory, &config, mode).unwrap();
       }
 
       fn outputs(&self) -> Vec<String> {
